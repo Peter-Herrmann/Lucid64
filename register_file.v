@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                               //
-// Module Name: reg_file                                                                         //
+// Module Name: register_file                                                                    //
 // Description: A 31x64 register file for use with an RV64I processor. Writes happen on negedge. //
 // Author     : Peter Herrmann                                                                   //
 //                                                                                               //
@@ -9,7 +9,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-module reg_file (
+module register_file (
     input              clk_i,           // Negedge sensitive
 
     input       [4:0]  rs1_idx_i,       // Register source 1 index

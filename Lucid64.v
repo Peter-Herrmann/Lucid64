@@ -378,7 +378,7 @@ module Lucid64 (
     //                                       Register File                                       //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    reg_file i_reg_file 
+    register_file i_register_file 
     (
         .clk_i,
 
