@@ -252,18 +252,7 @@ module decode_stage (
         next_pc_o       <= ~rst_ni ? 'b0 : (stall_i ? next_pc_o      : next_pc_i);
         br_cond_1h_o    <= ~rst_ni ? 'b0 : (stall_i ? br_cond_1h_o   : branch_cond_1h); 
     end
-    
-`ifdef VERILATOR
 
-    reg [4:0] rd_idx_d1, rd_idx_d2;
-
-    always @(posedge clk_i) begin
-        rd_idx_d1 <= rd_idx;
-        rd_idx_d2 <= rd_idx_d1;
-    end
-
-    wire _unused = &{rd_idx_d1, rd_idx_d2};
-`endif
 
 endmodule
 

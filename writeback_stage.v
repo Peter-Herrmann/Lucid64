@@ -43,18 +43,20 @@ module writeback_stage (
     //                                    Byte Addressing Logic                                  //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    reg [7:0]  bytes [0:7];
-    reg [15:0] halfs [0:3];
-    reg [31:0] words [0:1];
+    wire [7:0]  bytes [0:7];
+    wire [15:0] halfs [0:3];
+    wire [31:0] words [0:1];
     reg [63:0] load_data_sliced;
     reg        msb;
 
-    always @ (*) begin
-        { bytes[7], bytes[6], bytes[5], bytes[4], 
-          bytes[3], bytes[2], bytes[1], bytes[0] } = dmem_rdata_i[63:0];
-        { halfs[3], halfs[2], halfs[1], halfs[0] } = dmem_rdata_i[63:0];
-        { words[1], words[0] }                     = dmem_rdata_i[63:0];
 
+    assign { bytes[7], bytes[6], bytes[5], bytes[4], 
+             bytes[3], bytes[2], bytes[1], bytes[0] } = dmem_rdata_i[63:0];
+    assign { halfs[3], halfs[2], halfs[1], halfs[0] } = dmem_rdata_i[63:0];
+    assign { words[1], words[0] }                     = dmem_rdata_i[63:0];
+
+
+    always @ (*) begin
         case (mem_width_1h_i)
             `MEM_WIDTH_1H_BYTE:   begin
                 msb              = (mem_sign_i == `MEM_SIGNED) ? bytes[byte_addr_i][7] : 1'b0;
