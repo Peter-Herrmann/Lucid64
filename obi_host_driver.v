@@ -40,8 +40,13 @@ module obi_host_driver(
 
     // TODO - If at all possible, this negedge should be removed
     always @(negedge clk_i) begin
-        stall_o    <= stall_a || stall_next;
-        stall_next <= stall_next_a;
+        if (~rst_ni) begin
+            stall_o    <= 'b0;
+            stall_next <= 'b0;
+        end else begin
+            stall_o    <= stall_a || stall_next;
+            stall_next <= stall_next_a;
+        end
     end
 
 
