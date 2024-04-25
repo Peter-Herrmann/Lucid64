@@ -133,8 +133,8 @@ module memory_stage (
 
 
     always @(posedge clk_i) begin
-        if      (~rst_ni)   last_dmem_addr <= 'b0;
-        else if (~stall_i)  last_dmem_addr <= dmem_word_addr;
+        if      (~rst_ni)                  last_dmem_addr <= 'b0;
+        else if (~stall_i && dmem_req_ao)  last_dmem_addr <= dmem_word_addr;
     end
 
     assign dmem_addr_ao = (stall_i || squash_i) ? last_dmem_addr : dmem_word_addr;
