@@ -62,6 +62,52 @@ module memory_stage (
     wire valid = valid_i & ~squash_i;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                    Byte Addressing Logic                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    wire [63:0] dmem_full_addr,  dmem_word_addr, dmem_wdata_a;
+    reg  [63:0] last_dmem_addr;
+    reg         illegal_addr;
+    reg  [7:0]  byte_strobe;
+    wire [2:0]  byte_addr = dmem_full_addr[2:0];
+    
+
+    always @ (*) begin : dmem_strobe_gen
+        case (mem_width_1h_i)
+            `MEM_WIDTH_1H_BYTE: begin
+                illegal_addr      = 1'b0;
+                dmem_wdata_a      = { 8{rs2_data_i[7:0]} };
+                byte_strobe       = (8'b0000_0001 << byte_addr);
+            end
+            `MEM_WIDTH_1H_HALF: begin 
+                illegal_addr      = (byte_addr == 3'b111);
+                dmem_wdata_a      = { 4{rs2_data_i[15:0]} };
+                byte_strobe       = (illegal_addr) ? 8'b0 : (8'b0000_0011 << byte_addr);
+            end
+            `MEM_WIDTH_1H_WORD: begin 
+                illegal_addr      = (byte_addr > 3'b100);
+                dmem_wdata_a      = { 2{rs2_data_i[31:0]} };
+                byte_strobe       = (illegal_addr) ? 8'b0 : (8'b0000_1111 << byte_addr);
+            end
+            `MEM_WIDTH_1H_DOUBLE: begin 
+                illegal_addr      = (byte_addr != 3'b0);
+                dmem_wdata_a      = rs2_data_i;
+                byte_strobe       = (illegal_addr) ? 8'b0 : 8'b1111_1111;
+            end
+            default: begin
+                illegal_addr      = 1'b1;
+                dmem_wdata_a      = rs2_data_i;
+                byte_strobe       = 8'b0;
+            end
+        endcase
+    end
+    
+    assign dmem_full_addr = alu_result_i;
+    assign dmem_word_addr  = {dmem_full_addr[63:2], 2'b0};
+    assign dmem_illegal_ao = ( illegal_addr && (mem_read || mem_write) );
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                 Host Memory Request Driver                                //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -73,72 +119,23 @@ module memory_stage (
         .clk_i,
         .rst_ni,
 
-        .rd_i     (mem_read),
-        .wr_i     (mem_write),
-
         .gnt_i    (dmem_gnt_i),
         .rvalid_i (dmem_rvalid_i),
 
-        .stall_o  (dmem_stall_ao),
-        .req_o    (dmem_req_ao)
+        .be_i     ((mem_write) ? byte_strobe : 8'b0),
+        .addr_i   (dmem_word_addr),
+        .wdata_i  (dmem_wdata_a),
+        .rd_i     (mem_read),
+        .wr_i     (mem_write),
+
+        .stall_ao (dmem_stall_ao),
+
+        .req_o    (dmem_req_ao),
+        .we_ao    (dmem_we_ao),
+        .be_ao    (dmem_be_ao),
+        .addr_ao  (dmem_addr_ao),
+        .wdata_ao (dmem_wdata_ao)
     );
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                    Byte Addressing Logic                                  //
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    wire [63:0] dmem_full_addr,    dmem_word_addr;
-    reg  [63:0] last_dmem_addr;
-    reg         illegal_addr;
-    reg  [7:0]  byte_strobe;
-    wire [2:0]  byte_addr = dmem_full_addr[2:0];
-    
-    assign dmem_full_addr = alu_result_i;
-
-
-    always @ (*) begin : dmem_strobe_gen
-        case (mem_width_1h_i)
-            `MEM_WIDTH_1H_BYTE: begin
-                illegal_addr      = 1'b0;
-                dmem_wdata_ao     = { 8{rs2_data_i[7:0]} };
-                byte_strobe       = (8'b0000_0001 << byte_addr);
-            end
-            `MEM_WIDTH_1H_HALF: begin 
-                illegal_addr      = (byte_addr == 3'b111);
-                dmem_wdata_ao     = { 4{rs2_data_i[15:0]} };
-                byte_strobe       = (illegal_addr) ? 8'b0 : (8'b0000_0011 << byte_addr);
-            end
-            `MEM_WIDTH_1H_WORD: begin 
-                illegal_addr      = (byte_addr > 3'b100);
-                dmem_wdata_ao     = { 2{rs2_data_i[31:0]} };
-                byte_strobe       = (illegal_addr) ? 8'b0 : (8'b0000_1111 << byte_addr);
-            end
-            `MEM_WIDTH_1H_DOUBLE: begin 
-                illegal_addr      = (byte_addr != 3'b0);
-                dmem_wdata_ao     = rs2_data_i;
-                byte_strobe       = (illegal_addr) ? 8'b0 : 8'b1111_1111;
-            end
-            default: begin
-                illegal_addr      = 1'b1;
-                dmem_wdata_ao     = rs2_data_i;
-                byte_strobe       = 8'b0;
-            end
-        endcase
-    end
-    
-    assign dmem_word_addr  = {dmem_full_addr[63:2], 2'b0};
-    assign dmem_be_ao      = (mem_write) ? byte_strobe : 8'b0;
-    assign dmem_illegal_ao = ( illegal_addr && (mem_read || mem_write) );
-
-
-    always @(posedge clk_i) begin
-        if      (~rst_ni)                  last_dmem_addr <= 'b0;
-        else if (~stall_i && dmem_req_ao)  last_dmem_addr <= dmem_word_addr;
-    end
-
-    assign dmem_addr_ao = (stall_i || squash_i) ? last_dmem_addr : dmem_word_addr;
-    assign dmem_we_ao   = mem_write;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////

@@ -1,14 +1,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                               //
 // Module Name: obi_host_driver                                                                  //
-// Description: This module drives the req and stall signals for an OBI (Open Bus                //
-//              Interface) master. The rd and wr inputs indicate that a read or                  //
-//              write transaction is desired, and the gnt and rvalid signal come                 //
-//              from the OBI slave device directly. The stall signal is routed                   //
-//              back to the master for hazard management and the req signal is                   //
-//              output onto the OBI bus.                                                         //
+// Description:                                                                                  //
 //                                                                                               //
-//              The unit does not support multiple outstanding reads.                            //
 // Author     : Peter Herrmann                                                                   //
 //                                                                                               //
 // SPDX-License-Identifier: Apache-2.0                                                           //
@@ -18,91 +12,96 @@
 
 
 module obi_host_driver(
-        input           clk_i,
-        input           rst_ni,
+    //======= Clock, Reset, and Memory Flow Control ======//
+    input              clk_i,
+    input              rst_ni,
 
-        input           rd_i,
-        input           wr_i,
+    input              gnt_i,
+    input              rvalid_i,
 
-        input           gnt_i,
-        input           rvalid_i,
+    //============== Host Memory Controls ===============//
+    input [7:0]        be_i,
+    input [63:0]       addr_i,
+    input [63:0]       wdata_i,
+    input              rd_i,
+    input              wr_i,
 
-        output reg      stall_o,
-        output reg      req_o
+    //===================== Outputs =====================//
+    output wire        stall_ao,
+    // Memory request outputs
+    output wire        req_o,
+    output wire        we_ao,
+    output wire [7:0]  be_ao,
+    output wire [63:0] addr_ao,
+    output wire [63:0] wdata_ao
 );
 
-  reg NS, PS;
-  reg stall_a, stall_next, stall_next_a;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                        Stall Buffer                                       //
+    //                                 Transaction State Machine                                 //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    // TODO - If at all possible, this negedge should be removed
-    always @(negedge clk_i) begin
-        if (~rst_ni) begin
-            stall_o    <= 'b0;
-            stall_next <= 'b0;
+    reg  response_stall_a, req,   read_outstanding, read_accepted, request_stall_r;
+
+    always @ (*) begin
+        if (!read_outstanding) begin
+            read_accepted    = (rd_i && gnt_i);
+            req              = rd_i || wr_i;
+            response_stall_a = 'b0;
         end else begin
-            stall_o    <= stall_a || stall_next;
-            stall_next <= stall_next_a;
+            read_accepted    = !(rvalid_i && ~(rd_i && gnt_i));
+            req              =   rvalid_i &&  (rd_i || wr_i);
+            response_stall_a = !rvalid_i;
         end
     end
 
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                       Next State Decoder                                  //
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    always @ (*) begin
-        case (PS)
-            `MEM_PHASE_ADDR: 
-                NS = (rd_i && gnt_i)                ? `MEM_PHASE_RESP : `MEM_PHASE_ADDR;
-            `MEM_PHASE_RESP: 
-                NS = (rvalid_i && ~(rd_i && gnt_i)) ? `MEM_PHASE_ADDR : `MEM_PHASE_RESP;
-            default: 
-                NS = `MEM_PHASE_ADDR;
-        endcase
+    always @(posedge clk_i) begin
+        if (~rst_ni) begin
+            read_outstanding <= 'b0';
+            request_stall_r  <= 'b0';
+        end else begin
+            read_outstanding <= read_accepted;
+            request_stall_r  <= request_stall_a;
+        end
     end
 
+    wire request_stall_a = req && (!gnt_i);
+    wire stall           = request_stall_r || response_stall_a;
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                       Next State Register                                 //
+    //                                      Address Rewinder                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    reg [63:0] addr_saved, wdata_saved;
+    reg [7:0]  be_saved;
+    reg        we_saved;
 
     always @(posedge clk_i) begin
-        if (~rst_ni) 
-            PS <= `MEM_PHASE_ADDR;
-        else 
-            PS <= NS;
+        if (!rst_ni) begin
+            we_saved    <= 'b0;
+            be_saved    <= 'b0;
+            addr_saved  <= 'b0;
+            wdata_saved <= 'b0;
+        end else if (~stall && req) begin
+            we_saved    <= wr_i;
+            be_saved    <= be_i;
+            addr_saved  <= addr_i;
+            wdata_saved <= wdata_i;
+        end
     end
-
+    
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                         Output Decoder                                    //
+    //                                          Outputs                                          //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    always @ (*) begin
-        case (PS)
-            `MEM_PHASE_ADDR: begin
-                req_o        = ~rst_ni ? 'b0 : (rd_i || wr_i);
-                stall_a      = ( (rd_i || wr_i) && ~gnt_i);
-                stall_next_a = ( (rd_i || wr_i) && ~gnt_i);
-            end
-
-            `MEM_PHASE_RESP: begin
-                req_o        = ~rst_ni ? 'b0 : (rd_i || wr_i) && rvalid_i;
-                stall_a      = ~rvalid_i;
-                stall_next_a = ( ( (rd_i || wr_i) && rvalid_i ) && ~gnt_i );
-            end
-
-            default: begin
-                req_o        = 'b0;
-                stall_a      = 'b0;
-                stall_next_a = 'b0;
-            end
-        endcase
-    end
+    assign we_ao    = stall ? we_saved    : wr_i;
+    assign be_ao    = stall ? be_saved    : be_i;
+    assign addr_ao  = stall ? addr_saved  : addr_i;
+    assign wdata_ao = stall ? wdata_saved : wdata_i;
+    assign req_o    = req;
+    assign stall_o  = stall;
 
 
 endmodule 

@@ -96,18 +96,27 @@ module fetch_stage (
         .clk_i,
         .rst_ni,
 
-        .rd_i     ('b1),
-        .wr_i     ('b0),
-
         .gnt_i    (imem_gnt_i),
         .rvalid_i (imem_rvalid_i),
 
-        .stall_o  (imem_stall),
-        .req_o    (imem_req_o)
+        .be_i     ('b0),
+        .addr_i   (pc_raw),
+        .wdata_i  ('b0),
+        .rd_i     ('b1),
+        .wr_i     ('b0),
+
+        .stall_ao (imem_stall),
+
+        .req_o    (imem_req_o),
+        .we_ao    (),
+        .be_ao    (),
+        .addr_ao  (imem_addr_o),
+        .wdata_ao ()
     );
 
     assign imem_addr_o  = pc_out;
     assign imem_stall_o = imem_stall;
+
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
