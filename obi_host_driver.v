@@ -48,7 +48,7 @@ module obi_host_driver(
     always @ (*) begin
         if (!read_outstanding) begin
             read_accepted    = (rd_i && gnt_i);
-            req              = rd_i || wr_i;
+            req              = (rd_i || wr_i) || request_stall_r;
             response_stall_a = 'b0;
         end else begin
             read_accepted    = !(rvalid_i && ~(rd_i && gnt_i));
