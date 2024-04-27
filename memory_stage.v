@@ -122,7 +122,7 @@ module memory_stage (
         .gnt_i    (dmem_gnt_i),
         .rvalid_i (dmem_rvalid_i),
 
-        stall_i,
+        .stall_i,
 
         .be_i     ((mem_write) ? byte_strobe : 8'b0),
         .addr_i   (dmem_word_addr),
