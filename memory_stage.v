@@ -65,8 +65,8 @@ module memory_stage (
     //                                    Byte Addressing Logic                                  //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire [63:0] dmem_full_addr,  dmem_word_addr, dmem_wdata_a;
-    reg  [63:0] last_dmem_addr;
+    wire [63:0] dmem_full_addr,  dmem_word_addr;
+    reg  [63:0] dmem_wdata_a;
     reg         illegal_addr;
     reg  [7:0]  byte_strobe;
     wire [2:0]  byte_addr = dmem_full_addr[2:0];
