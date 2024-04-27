@@ -317,7 +317,10 @@ module Lucid64 (
 
     writeback_stage WB
     (
-        //================= Stage Controls ==================//
+        //======= Clocks, Resets, and Stage Controls ========//
+        .clk_i              (clk_i),
+        .rst_ni             (rst_ni),
+
         .squash_i           (WB_squash),
         .stall_i            (WB_stall),
 

@@ -63,10 +63,26 @@ module decode_stage (
     output reg  [5:0]   br_cond_1h_o
 );
 
-    wire valid = valid_i & ~squash_i;
-    
     wire [2:0]  func3       = inst_i[14:12];
     wire [6:0]  opcode      = inst_i[6:0];
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      Validity Tracker                                     //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    reg  squashed_during_stall;
+
+    always @(posedge clk_i) begin
+        if (~rst_ni) 
+            squashed_during_stall <= 'b0;
+        if (stall_i && squash_i) 
+            squashed_during_stall <= 'b1;
+        else if (~stall_i) 
+            squashed_during_stall <= 'b0;
+    end
+
+    wire valid = valid_i && ~squash_i && ~squashed_during_stall;
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                      Load Store Signals                                   //

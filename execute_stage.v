@@ -77,8 +77,24 @@ module execute_stage (
     output reg          mem_wr_o,
     output reg          mem_sign_o
 );
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      Validity Tracker                                     //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire valid = valid_i & ~squash_i;
+    reg  squashed_during_stall;
+
+    always @(posedge clk_i) begin
+        if (~rst_ni) 
+            squashed_during_stall <= 'b0;
+        if (stall_i && squash_i) 
+            squashed_during_stall <= 'b1;
+        else if (~stall_i) 
+            squashed_during_stall <= 'b0;
+    end
+
+    wire valid = valid_i && ~squash_i && ~squashed_during_stall;
+
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                       Bypass Units                                        //
