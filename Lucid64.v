@@ -81,21 +81,21 @@ module Lucid64 (
         .target_addr_i  (EXE_pc_target_addr),
     
         //========== Instruction Memory Interface ===========//
-        .imem_gnt_i,
-        .imem_rvalid_i,
         .imem_req_o,
+        .imem_gnt_i,
         .imem_addr_o,
-        .imem_stall_o   (imem_stall),
+        .imem_we_o,
+        .imem_be_o,
+        .imem_wdata_o,
+        .imem_rvalid_i,
+
+        .imem_stall_ao  (imem_stall),
 
         //================ Pipeline Outputs =================//
         .valid_o        (FCH_valid),
         .pc_o           (FCH_pc),
         .next_pc_o      (FCH_next_pc)
     );
-
-    assign imem_we_o    = 'b0;
-    assign imem_be_o    = 'b0;
-    assign imem_wdata_o = 'b0;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -286,7 +286,7 @@ module Lucid64 (
         .mem_sign_i         (EXE_sign),
         
         //============== Data Memory Interface ==============//
-        .dmem_req_ao        (dmem_req_o),
+        .dmem_req_o         (dmem_req_o),
         .dmem_gnt_i         (dmem_gnt_i),
         .dmem_addr_ao       (dmem_addr_o),
         .dmem_we_ao         (dmem_we_o),
