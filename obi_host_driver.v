@@ -57,8 +57,8 @@ module obi_host_driver(
 
     always @(posedge clk_i) begin
         if (~rst_ni) begin
-            read_outstanding <= 'b0';
-            request_stall_r  <= 'b0';
+            read_outstanding <= 'b0;
+            request_stall_r  <= 'b0;
         end else begin
             read_outstanding <= read_accepted;
             request_stall_r  <= request_stall_a;
