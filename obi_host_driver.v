@@ -19,6 +19,8 @@ module obi_host_driver(
     input              gnt_i,
     input              rvalid_i,
 
+    input              stall_i,
+
     //============== Host Memory Controls ===============//
     input [7:0]        be_i,
     input [63:0]       addr_i,
@@ -66,7 +68,7 @@ module obi_host_driver(
     end
 
     wire request_stall_a = req && (!gnt_i);
-    wire stall           = request_stall_r || response_stall_a;
+    wire stall           = request_stall_r || response_stall_a || stall_i;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,12 +98,12 @@ module obi_host_driver(
     //                                          Outputs                                          //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    assign we_ao    = stall ? we_saved    : wr_i;
-    assign be_ao    = stall ? be_saved    : be_i;
-    assign addr_ao  = stall ? addr_saved  : addr_i;
-    assign wdata_ao = stall ? wdata_saved : wdata_i;
+    assign we_ao    = (stall) ? we_saved    : wr_i;
+    assign be_ao    = (stall) ? be_saved    : be_i;
+    assign addr_ao  = (stall) ? addr_saved  : addr_i;
+    assign wdata_ao = (stall) ? wdata_saved : wdata_i;
     assign req_o    = req;
-    assign stall_ao = stall;
+    assign stall_ao = (request_stall_r || response_stall_a);
 
 
 endmodule 

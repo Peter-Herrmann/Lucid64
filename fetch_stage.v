@@ -94,6 +94,8 @@ module fetch_stage (
         .gnt_i    (imem_gnt_i),
         .rvalid_i (imem_rvalid_i),
 
+        .stall_i,
+
         .be_i     ('b0),
         .addr_i   (pc_out),
         .wdata_i  ('b0),
