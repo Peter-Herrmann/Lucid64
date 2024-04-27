@@ -286,7 +286,7 @@ module Lucid64 (
         .mem_sign_i         (EXE_sign),
         
         //============== Data Memory Interface ==============//
-        .dmem_req_ao        (dmem_req_o),
+        .dmem_req_o         (dmem_req_o),
         .dmem_gnt_i         (dmem_gnt_i),
         .dmem_addr_ao       (dmem_addr_o),
         .dmem_we_ao         (dmem_we_o),
@@ -294,7 +294,7 @@ module Lucid64 (
         .dmem_wdata_ao      (dmem_wdata_o),
         .dmem_rvalid_i      (dmem_rvalid_i),
 
-        .dmem_stall_o       (dmem_stall),
+        .dmem_stall_ao      (dmem_stall),
         .dmem_illegal_ao    (alert_o),
 
         //================ Pipeline Outputs =================//
