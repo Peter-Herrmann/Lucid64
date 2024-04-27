@@ -35,7 +35,7 @@ module memory_stage (
     input               mem_sign_i,
 
     //============== Data Memory Interface ==============//
-    output wire         dmem_req_ao,
+    output wire         dmem_req_o,
     input               dmem_gnt_i,
     output wire  [63:0] dmem_addr_ao,
     output wire         dmem_we_ao,
@@ -130,7 +130,7 @@ module memory_stage (
 
         .stall_ao (dmem_stall_ao),
 
-        .req_o    (dmem_req_ao),
+        .req_o    (dmem_req_o),
         .we_ao    (dmem_we_ao),
         .be_ao    (dmem_be_ao),
         .addr_ao  (dmem_addr_ao),

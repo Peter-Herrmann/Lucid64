@@ -24,11 +24,15 @@ module fetch_stage (
     input       [63:0]  target_addr_i,
 
     //========== Instruction Memory Interface ===========//
-    input               imem_gnt_i,
-    input               imem_rvalid_i,
     output wire         imem_req_o,
-    output wire [63:0]  imem_addr_o,
-    output wire         imem_stall_o,
+    input               imem_gnt_i,
+    output wire  [63:0] imem_addr_o,
+    output wire         imem_we_o,
+    output wire  [3:0]  imem_be_o,
+    output wire  [31:0] imem_wdata_o,
+    input               imem_rvalid_i,
+
+    output wire         imem_stall_ao,
     
     //================ Pipeline Outputs =================//
     output reg          valid_o,
@@ -38,57 +42,44 @@ module fetch_stage (
 
     wire valid = ~squash_i;
 
-    wire imem_stall;
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                  Branch Control Synchronizer                              //
+    //                                  Branch Target Re-Winder                                  //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    reg [63:0] target_saved;
-    reg        branch_ctrl_saved, target_sel_saved;
+    reg stall_delayed;
+    wire [63:0] next_pc, next_pc_current;
+    reg  [63:0] next_pc_saved;
+
+    assign next_pc_current = (target_sel_i == `PC_SRC_BRANCH) ? target_addr_i : (pc_out + 4);
 
     always @(posedge clk_i) begin
-        if (!rst_ni) begin
-            target_saved        <= 'b0;
-            target_sel_saved    <= 'b0;
-            branch_ctrl_saved   <= 'b0;
-        end else if (~stall_i) begin
-            branch_ctrl_saved   <= 'b0;
-        end else if (imem_stall && ~branch_ctrl_saved) begin
-            target_saved        <= target_addr_i;
-            target_sel_saved    <= target_sel_i;
-            branch_ctrl_saved   <= 'b1;
-        end
+        if (~rst_ni)                stall_delayed <= 'b0;
+        else                        stall_delayed <= stall_i;
     end
-    
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                Program Counter and Branch MUX                             //
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    wire [63:0] next_pc, pc_out, target_addr;
-    reg  [63:0] last_pc, pc_raw;
-    wire        target_sel;
-
-    assign target_sel  = branch_ctrl_saved              ? target_sel_saved : target_sel_i;
-    assign target_addr = branch_ctrl_saved              ? target_saved     : target_addr_i;
-    assign next_pc     = (target_sel == `PC_SRC_BRANCH) ? target_addr      : (pc_out + 4);
 
     always @(posedge clk_i) begin
-        if (~rst_ni) begin
-            last_pc <= `RESET_ADDR;
-            pc_raw  <= `RESET_ADDR;
-        end else if (~stall_i) begin
-            last_pc <= pc_raw; 
-            pc_raw  <= next_pc;
-        end
+        if (~rst_ni)                next_pc_saved <= 'b0;
+        else if (~stall_delayed)    next_pc_saved <= next_pc_current;
     end
 
-    assign pc_out = stall_i ? last_pc : pc_raw;
+    assign next_pc = stall_delayed ? next_pc_saved : next_pc_current;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                 Instruction Memory Interface                              //
+    //                                      Program Counter                                      //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    reg  [63:0] pc_out;
+
+    always @(posedge clk_i) begin
+        if      (~rst_ni)   pc_out <= `RESET_ADDR;
+        else if (~stall_i)  pc_out <= next_pc;
+    end
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                               Instruction Memory Interface                                //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     obi_host_driver imem_obi_host_driver 
@@ -100,23 +91,19 @@ module fetch_stage (
         .rvalid_i (imem_rvalid_i),
 
         .be_i     ('b0),
-        .addr_i   (pc_raw),
+        .addr_i   (pc_out),
         .wdata_i  ('b0),
         .rd_i     ('b1),
         .wr_i     ('b0),
 
-        .stall_ao (imem_stall),
+        .stall_ao (imem_stall_ao),
 
         .req_o    (imem_req_o),
-        .we_ao    (),
-        .be_ao    (),
+        .we_ao    (imem_we_o),
+        .be_ao    (imem_be_o),
         .addr_ao  (imem_addr_o),
-        .wdata_ao ()
+        .wdata_ao (imem_wdata_o)
     );
-
-    assign imem_addr_o  = pc_out;
-    assign imem_stall_o = imem_stall;
-
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
