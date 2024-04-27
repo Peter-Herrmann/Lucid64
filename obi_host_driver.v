@@ -101,7 +101,7 @@ module obi_host_driver(
     assign addr_ao  = stall ? addr_saved  : addr_i;
     assign wdata_ao = stall ? wdata_saved : wdata_i;
     assign req_o    = req;
-    assign stall_o  = stall;
+    assign stall_ao = stall;
 
 
 endmodule 
