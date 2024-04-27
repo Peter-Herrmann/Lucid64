@@ -82,6 +82,10 @@ module fetch_stage (
     //                               Instruction Memory Interface                                //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    wire [63:0] wdata;
+    wire [7:0]  be;
+    wire        we;
+
     obi_host_driver imem_obi_host_driver 
     (
         .clk_i,
@@ -99,11 +103,19 @@ module fetch_stage (
         .stall_ao (imem_stall_ao),
 
         .req_o    (imem_req_o),
-        .we_ao    (imem_we_o),
-        .be_ao    (imem_be_o),
+        .we_ao    (we),
+        .be_ao    (be),
         .addr_ao  (imem_addr_o),
-        .wdata_ao (imem_wdata_o)
+        .wdata_ao (wdata)
     );
+
+    assign imem_wdata_o = 'b0;
+    assign imem_be_o    = 'b0;
+    assign imem_we_o    = 'b0;
+
+`ifdef VERILATOR
+    wire _unused = &{we, be, wdata};
+`endif
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -122,6 +134,7 @@ module fetch_stage (
         pc_o      <= ~rst_ni ? 'b0 : (stall_i ? pc_o      : pc_out);
         next_pc_o <= ~rst_ni ? 'b0 : (stall_i ? next_pc_o : pc_out + 4);
     end
+
 
 endmodule
 
