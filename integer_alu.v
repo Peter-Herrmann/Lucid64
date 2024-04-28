@@ -27,6 +27,7 @@ module integer_alu (
     wire [31:0] subw_res = a_32  - b_32;
     wire [31:0] sraw_res = $signed(a_32) >>> b_32[4:0];
 
+
     always @ (*) begin
         case (alu_op_1h_i)
             `ALU_1H_ADD  : alu_result_oa = a_i + b_i;
@@ -40,6 +41,7 @@ module integer_alu (
             `ALU_1H_SUB  : alu_result_oa = a_i - b_i;
             `ALU_1H_SRA  : alu_result_oa = $signed(a_i) >>> b_i[5:0];
             `ALU_1H_PASS : alu_result_oa = a_i;
+
             // RV64I W (32 bit) opcodes
             `ALU_1H_ADDW : alu_result_oa = { {32{addw_res[31]}}, addw_res };
             `ALU_1H_SLLW : alu_result_oa = { {32{sllw_res[31]}}, sllw_res };
@@ -49,6 +51,7 @@ module integer_alu (
             default      : alu_result_oa = 'b0; 
         endcase
     end
+
 endmodule
 
 

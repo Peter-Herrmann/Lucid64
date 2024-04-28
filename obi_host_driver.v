@@ -1,7 +1,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                               //
 // Module Name: obi_host_driver                                                                  //
-// Description:                                                                                  //
+// Description: This module handles driving memory reads and writes through an OBI interface.    //
+//              It manages request and response stalls internally, including re-winding outputs  //
+//              during stalls.                                                                   //
 //                                                                                               //
 // Author     : Peter Herrmann                                                                   //
 //                                                                                               //
@@ -72,7 +74,7 @@ module obi_host_driver(
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                      Address Rewinder                                     //
+    //                                       Output Rewinder                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     reg [63:0] addr_saved, wdata_saved;

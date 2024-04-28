@@ -18,16 +18,15 @@ module validity_tracker (
     input       rst_ni,
 
     input       valid_i,
-
     input       squash_i,
     input       bubble_i,
     input       stall_i,
 
     output wire valid_ao
 );
-    
 
     reg  squashed_during_stall, squashed_during_bubble;
+
 
     always @(posedge clk_i) begin
         if (~rst_ni || ~stall_i) 
@@ -36,12 +35,14 @@ module validity_tracker (
             squashed_during_stall   <= 'b1;
     end
 
+
     always @(posedge clk_i) begin
         if (~rst_ni || ~bubble_i) 
             squashed_during_bubble   <= 'b0;
         else if (bubble_i && squash_i) 
             squashed_during_bubble   <= 'b1;
     end
+
 
     assign valid_ao = valid_i && 
                       ~squash_i && ~squashed_during_stall && 
