@@ -71,25 +71,20 @@ module decode_stage (
     //                                      Validity Tracker                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    reg  squashed_during_stall, squashed_during_bubble;
+    wire valid;
 
-    always @(posedge clk_i) begin
-        if (~rst_ni || ~stall_i) 
-            squashed_during_stall   <= 'b0;
-        else if (stall_i && squash_i) 
-            squashed_during_stall   <= 'b1;
-    end
+    validity_tracker DCD_validity_tracker (
+        .clk_i,
+        .rst_ni,
 
-    always @(posedge clk_i) begin
-        if (~rst_ni || ~bubble_i) 
-            squashed_during_bubble   <= 'b0;
-        else if (bubble_i && squash_i) 
-            squashed_during_bubble   <= 'b1;
-    end
+        .valid_i,
+        
+        .squash_i,
+        .bubble_i,
+        .stall_i,
 
-    wire valid = valid_i && 
-                ~squash_i && ~squashed_during_stall && 
-                ~bubble_i && ~squashed_during_bubble;
+        .valid_ao       (valid)
+    );
 
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
