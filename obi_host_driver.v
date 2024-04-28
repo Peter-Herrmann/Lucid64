@@ -77,7 +77,8 @@ module obi_host_driver(
 
     reg [63:0] addr_saved, wdata_saved;
     reg [7:0]  be_saved;
-    reg        we_saved, rd_saved, mem_read;
+    reg        we_saved, read_saved;
+    wire       read;
 
     always @(posedge clk_i) begin
         if (!rst_ni) begin
@@ -87,7 +88,7 @@ module obi_host_driver(
             addr_saved  <= 'b0;
             wdata_saved <= 'b0;
         end else if (~stall && req) begin
-            rd_saved    <= rd_i;
+            read_saved  <= rd_i;
             we_saved    <= wr_i;
             be_saved    <= be_i;
             addr_saved  <= addr_i;
