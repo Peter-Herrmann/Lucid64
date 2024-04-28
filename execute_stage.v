@@ -99,7 +99,9 @@ module execute_stage (
             squashed_during_bubble   <= 'b1;
     end
 
-    wire valid = valid_i && ~squash_i && ~squashed_during_stall && ~squashed_during_bubble;
+    wire valid = valid_i && 
+                ~squash_i && ~squashed_during_stall && 
+                ~bubble_i && ~squashed_during_bubble;
 
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
