@@ -12,8 +12,12 @@
 
 
 module writeback_stage (
-    //================= Stage Controls ==================//
+    //======= Clocks, Resets, and Stage Controls ========//
+    input               clk_i,
+    input               rst_ni,
+    
     input               squash_i,
+    input               bubble_i,
     input               stall_i,
 
     //============= Memory Pipeline Inputs ==============//
@@ -36,9 +40,27 @@ module writeback_stage (
 
     output wire valid_ao
 );
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      Validity Tracker                                     //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire valid = valid_i & ~squash_i;
+    wire valid;
 
+    validity_tracker WB_validity_tracker (
+        .clk_i,
+        .rst_ni,
+
+        .valid_i,
+        
+        .squash_i,
+        .bubble_i,
+        .stall_i,
+
+        .valid_ao       (valid)
+    );
+
+    
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                    Byte Addressing Logic                                  //
     ///////////////////////////////////////////////////////////////////////////////////////////////

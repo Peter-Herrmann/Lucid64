@@ -18,6 +18,7 @@ module execute_stage (
     input               rst_ni,
     
     input               squash_i,
+    input               bubble_i,
     input               stall_i,
 
     //============== Decode Stage Inputs ================//
@@ -77,8 +78,26 @@ module execute_stage (
     output reg          mem_wr_o,
     output reg          mem_sign_o
 );
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      Validity Tracker                                     //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire valid = valid_i & ~squash_i;
+    wire valid;
+
+    validity_tracker EXE_validity_tracker (
+        .clk_i,
+        .rst_ni,
+
+        .valid_i,
+        
+        .squash_i,
+        .bubble_i,
+        .stall_i,
+
+        .valid_ao       (valid)
+    );
+
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                       Bypass Units                                        //

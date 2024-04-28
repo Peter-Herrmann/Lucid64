@@ -17,6 +17,7 @@ module fetch_stage (
     input               rst_ni,
     
     input               squash_i,
+    input               bubble_i,
     input               stall_i,
 
     //============== Branch Control Inputs ==============//
@@ -39,8 +40,25 @@ module fetch_stage (
     output reg  [63:0]  pc_o,
     output reg  [63:0]  next_pc_o
 );
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      Validity Tracker                                     //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire valid = ~squash_i;
+    wire valid;
+
+    validity_tracker FCH_validity_tracker (
+        .clk_i,
+        .rst_ni,
+
+        .valid_i        (1'b1),
+        
+        .squash_i,
+        .bubble_i,
+        .stall_i,
+
+        .valid_ao       (valid)
+    );
 
     
     ///////////////////////////////////////////////////////////////////////////////////////////////

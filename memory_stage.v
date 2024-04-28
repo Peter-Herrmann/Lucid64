@@ -17,6 +17,7 @@ module memory_stage (
     input               rst_ni,
     
     input               squash_i,
+    input               bubble_i,
     input               stall_i,
 
     //============== Execute Stage Inputs ===============//
@@ -58,9 +59,27 @@ module memory_stage (
     output reg          mem_sign_o,
     output reg  [2:0]   byte_addr_o
 );
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      Validity Tracker                                     //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire valid = valid_i & ~squash_i;
+    wire valid;
 
+    validity_tracker MEM_validity_tracker (
+        .clk_i,
+        .rst_ni,
+
+        .valid_i,
+        
+        .squash_i,
+        .bubble_i,
+        .stall_i,
+
+        .valid_ao       (valid)
+    );
+
+    
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                    Byte Addressing Logic                                  //
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,8 +130,8 @@ module memory_stage (
     //                                 Host Memory Request Driver                                //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire mem_read  = mem_rd_i & ~squash_i & valid_i;
-    wire mem_write = mem_wr_i & ~squash_i & valid_i;
+    wire mem_read  = mem_rd_i & valid;
+    wire mem_write = mem_wr_i & valid;
 
     obi_host_driver dmem_obi_host_driver 
     (
@@ -136,7 +155,7 @@ module memory_stage (
         .we_ao    (dmem_we_ao),
         .be_ao    (dmem_be_ao),
         .addr_ao  (dmem_addr_ao),
-        .wdata_ao (dmem_wdata_ao)
+        .wdata_ao (dmem_wdata_ao)   
     );
 
 

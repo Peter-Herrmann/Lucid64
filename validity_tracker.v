@@ -1,56 +1,53 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                               //
-// Module Name: integer_alu                                                                      //
-// Description: RV64I Arithmetic and Logic Unit.                                                 //
+// Module Name: validity_tracker                                                                 //
+// Description: This module tracks the validity of a pipeline stage. It manages stalls, squashes //
+//              (explicit invalidation), bubbles (invalid instructions introduced into a         //
+//              pipeline), and validity inheritance from pervious stages. It handles hazards     //
+//              associated with multiple conditions (i.e. squash during bubbles or stalls)       //
+//              occuring at the same time.                                                       //
 // Author     : Peter Herrmann                                                                   //
 //                                                                                               //
 // SPDX-License-Identifier: Apache-2.0                                                           //
 //                                                                                               //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-`include "Lucid64.vh"
 
 
-module integer_alu (
-    input      [63:0]   a_i,
-    input      [63:0]   b_i,
-    input      [15:0]   alu_op_1h_i,
+module validity_tracker (
+    input       clk_i,
+    input       rst_ni,
 
-    output reg [63:0]   alu_result_oa
+    input       valid_i,
+    input       squash_i,
+    input       bubble_i,
+    input       stall_i,
+
+    output wire valid_ao
 );
 
-    wire [31:0] a_32 = a_i[31:0];
-    wire [31:0] b_32 = b_i[31:0];
-
-    wire [31:0] addw_res = a_32  + b_32;
-    wire [31:0] sllw_res = a_32 << b_32[4:0];
-    wire [31:0] srlw_res = a_32 >> b_32[4:0];
-    wire [31:0] subw_res = a_32  - b_32;
-    wire [31:0] sraw_res = $signed(a_32) >>> b_32[4:0];
+    reg  squashed_during_stall, squashed_during_bubble;
 
 
-    always @ (*) begin
-        case (alu_op_1h_i)
-            `ALU_1H_ADD  : alu_result_oa = a_i + b_i;
-            `ALU_1H_SLL  : alu_result_oa = a_i << b_i[5:0];
-            `ALU_1H_SLT  : alu_result_oa = $signed(a_i) < $signed(b_i) ? 64'd1: 'b0;
-            `ALU_1H_SLTU : alu_result_oa = a_i < b_i ? 64'd1: 'b0;
-            `ALU_1H_XOR  : alu_result_oa = a_i ^ b_i;
-            `ALU_1H_SRL  : alu_result_oa = a_i >> b_i[5:0];
-            `ALU_1H_OR   : alu_result_oa = a_i | b_i;
-            `ALU_1H_AND  : alu_result_oa = a_i & b_i;
-            `ALU_1H_SUB  : alu_result_oa = a_i - b_i;
-            `ALU_1H_SRA  : alu_result_oa = $signed(a_i) >>> b_i[5:0];
-            `ALU_1H_PASS : alu_result_oa = a_i;
-
-            // RV64I W (32 bit) opcodes
-            `ALU_1H_ADDW : alu_result_oa = { {32{addw_res[31]}}, addw_res };
-            `ALU_1H_SLLW : alu_result_oa = { {32{sllw_res[31]}}, sllw_res };
-            `ALU_1H_SRLW : alu_result_oa = { {32{srlw_res[31]}}, srlw_res };
-            `ALU_1H_SUBW : alu_result_oa = { {32{subw_res[31]}}, subw_res };
-            `ALU_1H_SRAW : alu_result_oa = { {32{sraw_res[31]}}, sraw_res };
-            default      : alu_result_oa = 'b0; 
-        endcase
+    always @(posedge clk_i) begin
+        if (~rst_ni || ~stall_i) 
+            squashed_during_stall   <= 'b0;
+        else if (stall_i && squash_i) 
+            squashed_during_stall   <= 'b1;
     end
+
+
+    always @(posedge clk_i) begin
+        if (~rst_ni || ~bubble_i) 
+            squashed_during_bubble   <= 'b0;
+        else if (bubble_i && squash_i) 
+            squashed_during_bubble   <= 'b1;
+    end
+
+
+    assign valid_ao = valid_i && 
+                      ~squash_i && ~squashed_during_stall && 
+                      ~bubble_i && ~squashed_during_bubble;
+
 
 endmodule
 

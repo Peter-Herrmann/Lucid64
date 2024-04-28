@@ -17,6 +17,7 @@ module decode_stage (
     input               rst_ni,
     
     input               squash_i,
+    input               bubble_i,
     input               stall_i,
 
     //=============== Fetch Stage Inputs ================//
@@ -63,11 +64,30 @@ module decode_stage (
     output reg  [5:0]   br_cond_1h_o
 );
 
-    wire valid = valid_i & ~squash_i;
-    
     wire [2:0]  func3       = inst_i[14:12];
     wire [6:0]  opcode      = inst_i[6:0];
+    
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      Validity Tracker                                     //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    wire valid;
+
+    validity_tracker DCD_validity_tracker (
+        .clk_i,
+        .rst_ni,
+
+        .valid_i,
+        
+        .squash_i,
+        .bubble_i,
+        .stall_i,
+
+        .valid_ao       (valid)
+    );
+
+    
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                      Load Store Signals                                   //
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,6 +107,7 @@ module decode_stage (
             default             : mem_width_1h = 'b0;
         endcase
     end
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                          Register File                                    //

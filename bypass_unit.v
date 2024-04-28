@@ -10,17 +10,19 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 module bypass_unit (
+    //============ Forwarded register inputs ============//
     input               EXE_mem_read_i,
     input               EXE_rd_wr_en_i,  MEM_rd_wr_en_i,
     input               EXE_valid_i,     MEM_valid_i,
     input      [4:0]    EXE_rd_idx_i,    MEM_rd_idx_i,
     input      [63:0]   EXE_rd_data_i,   MEM_rd_data_i,
 
-
+    //============= Source Register Inputs ==============//
     input      [4:0]    rs_idx_i,
     input      [63:0]   rs_data_i,
     input               rs_used_i,
 
+    //====== Updated Register and Hazard Indicator ======//
     output reg [63:0]   rs_data_ao,
     output reg          load_use_hazard_ao
 );
