@@ -18,6 +18,7 @@ module execute_stage (
     input               rst_ni,
     
     input               squash_i,
+    input               bubble_i,
     input               stall_i,
 
     //============== Decode Stage Inputs ================//
@@ -82,18 +83,23 @@ module execute_stage (
     //                                      Validity Tracker                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    reg  squashed_during_stall;
+    reg  squashed_during_stall, squashed_during_bubble;
 
     always @(posedge clk_i) begin
-        if (~rst_ni) 
-            squashed_during_stall <= 'b0;
-        if (stall_i && squash_i) 
-            squashed_during_stall <= 'b1;
-        else if (~stall_i) 
-            squashed_during_stall <= 'b0;
+        if (~rst_ni || ~stall_i) 
+            squashed_during_stall   <= 'b0;
+        else if (stall_i && squash_i) 
+            squashed_during_stall   <= 'b1;
     end
 
-    wire valid = valid_i && ~squash_i && ~squashed_during_stall;
+    always @(posedge clk_i) begin
+        if (~rst_ni || ~bubble_i) 
+            squashed_during_bubble   <= 'b0;
+        else if (bubble_i && squash_i) 
+            squashed_during_bubble   <= 'b1;
+    end
+
+    wire valid = valid_i && ~squash_i && ~squashed_during_stall && ~squashed_during_bubble;
 
     
     ///////////////////////////////////////////////////////////////////////////////////////////////

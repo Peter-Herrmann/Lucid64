@@ -39,6 +39,7 @@ module Lucid64 (
 
     // Stage Management Signals
     wire         FCH_squash, DCD_squash, EXE_squash, MEM_squash, WB_squash;
+    wire         FCH_bubble, DCD_bubble, EXE_bubble, MEM_bubble, WB_bubble;
     wire         FCH_stall,  DCD_stall,  EXE_stall,  MEM_stall,  WB_stall;
     wire         FCH_valid,  DCD_valid,  EXE_valid,  MEM_valid,  WB_valid; 
 
@@ -74,6 +75,7 @@ module Lucid64 (
         .rst_ni,
 
         .squash_i       (FCH_squash),
+        .bubble_i       (FCH_bubble),
         .stall_i        (FCH_stall),
 
         //============== Branch Control Inputs ==============//
@@ -126,6 +128,7 @@ module Lucid64 (
         .rst_ni,
         
         .squash_i           (DCD_squash),
+        .bubble_i           (DCD_bubble),
         .stall_i            (DCD_stall),
         //=============== Fetch Stage Inputs ================//
         .pc_i               (FCH_pc),
@@ -187,65 +190,66 @@ module Lucid64 (
         .clk_i,
         .rst_ni,
         
-        .squash_i          (EXE_squash),
-        .stall_i           (EXE_stall),
+        .squash_i           (EXE_squash),
+        .bubble_i           (EXE_bubble),
+        .stall_i            (EXE_stall),
 
         //============== Decode Stage Inputs ================//
-        .valid_i           (DCD_valid),
+        .valid_i            (DCD_valid),
         // Register Source 1 (rs1)
-        .rs1_idx_i         (DCD_rs1_idx),
-        .rs1_used_i        (DCD_rs1_used),
-        .rs1_data_i        (DCD_rs1_data),
+        .rs1_idx_i          (DCD_rs1_idx),
+        .rs1_used_i         (DCD_rs1_used),
+        .rs1_data_i         (DCD_rs1_data),
         // Register Source 2 (rs2)
-        .rs2_idx_i         (DCD_rs2_idx),
-        .rs2_used_i        (DCD_rs2_used),
-        .rs2_data_i        (DCD_rs2_data),
+        .rs2_idx_i          (DCD_rs2_idx),
+        .rs2_used_i         (DCD_rs2_used),
+        .rs2_data_i         (DCD_rs2_data),
         // Destination Register (rd)
-        .rd_idx_i          (DCD_rd_idx),
-        .rd_wr_en_i        (DCD_rd_wr_en),
-        .rd_wr_src_1h_i    (DCD_rd_wr_src_1h),
+        .rd_idx_i           (DCD_rd_idx),
+        .rd_wr_en_i         (DCD_rd_wr_en),
+        .rd_wr_src_1h_i     (DCD_rd_wr_src_1h),
         // ALU Operation and Operands
-        .alu_op_1h_i       (DCD_alu_op_1h),
-        .alu_op_a_i        (DCD_alu_op_a),
-        .alu_op_b_i        (DCD_alu_op_b),
-        .alu_uses_rs1_i    (DCD_alu_uses_rs1),
-        .alu_uses_rs2_i    (DCD_alu_uses_rs2),
+        .alu_op_1h_i        (DCD_alu_op_1h),
+        .alu_op_a_i         (DCD_alu_op_a),
+        .alu_op_b_i         (DCD_alu_op_b),
+        .alu_uses_rs1_i     (DCD_alu_uses_rs1),
+        .alu_uses_rs2_i     (DCD_alu_uses_rs2),
         // Load/Store
-        .mem_width_1h_i    (DCD_mem_width_1h),
-        .mem_rd_i          (DCD_mem_rd),
-        .mem_wr_i          (DCD_mem_wr),
-        .mem_sign_i        (DCD_mem_sign),
+        .mem_width_1h_i     (DCD_mem_width_1h),
+        .mem_rd_i           (DCD_mem_rd),
+        .mem_wr_i           (DCD_mem_wr),
+        .mem_sign_i         (DCD_mem_sign),
         // Flow Control
-        .pc_src_i          (DCD_pc_src),
-        .next_pc_i         (DCD_next_pc),
-        .br_cond_1h_i      (DCD_br_cond_1h),
+        .pc_src_i           (DCD_pc_src),
+        .next_pc_i          (DCD_next_pc),
+        .br_cond_1h_i       (DCD_br_cond_1h),
 
         //============= Forwarded Register Data =============//
-        .MEM_rd_wr_en_i    (rd_wr_en),
-        .MEM_valid_i       (WB_valid),
-        .MEM_rd_idx_i      (rd_idx),
-        .MEM_rd_data_i     (rd_data),
+        .MEM_rd_wr_en_i     (rd_wr_en),
+        .MEM_valid_i        (WB_valid),
+        .MEM_rd_idx_i       (rd_idx),
+        .MEM_rd_data_i      (rd_data),
 
         //============== Flow Control Outputs ===============//
-        .target_sel_o      (EXE_pc_target_sel),
-        .target_addr_o     (EXE_pc_target_addr),
+        .target_sel_o       (EXE_pc_target_sel),
+        .target_addr_o      (EXE_pc_target_addr),
 
-        .load_use_stall_ao (load_use_stall),
+        .load_use_stall_ao  (load_use_stall),
 
         //================ Pipeline Outputs =================//
-        .valid_o           (EXE_valid),
-        .alu_res_o         (EXE_alu_out),
-        .rs2_data_o        (EXE_rs2_data),
+        .valid_o            (EXE_valid),
+        .alu_res_o          (EXE_alu_out),
+        .rs2_data_o         (EXE_rs2_data),
         // Destination Register (rd)
-        .rd_data_o         (EXE_rd_data),
-        .rd_idx_o          (EXE_rd_idx),
-        .rd_wr_en_o        (EXE_rd_wr_en),
-        .rd_wr_src_1h_o    (EXE_rd_wr_src_1h),
+        .rd_data_o          (EXE_rd_data),
+        .rd_idx_o           (EXE_rd_idx),
+        .rd_wr_en_o         (EXE_rd_wr_en),
+        .rd_wr_src_1h_o     (EXE_rd_wr_src_1h),
         // Load/Store
-        .mem_width_1h_o    (EXE_mem_width_1h),
-        .mem_rd_o          (EXE_rd),
-        .mem_wr_o          (EXE_wr),
-        .mem_sign_o        (EXE_sign)
+        .mem_width_1h_o     (EXE_mem_width_1h),
+        .mem_rd_o           (EXE_rd),
+        .mem_wr_o           (EXE_wr),
+        .mem_sign_o         (EXE_sign)
     );
 
 
@@ -268,6 +272,7 @@ module Lucid64 (
         .rst_ni             (rst_ni),
 
         .squash_i           (MEM_squash),
+        .bubble_i           (MEM_bubble),
         .stall_i            (MEM_stall),
 
         //============== Execute Stage Inputs ===============//
@@ -322,6 +327,7 @@ module Lucid64 (
         .rst_ni             (rst_ni),
 
         .squash_i           (WB_squash),
+        .bubble_i           (WB_bubble),
         .stall_i            (WB_stall),
 
         //============= Memory Pipeline Inputs ==============//
@@ -362,18 +368,23 @@ module Lucid64 (
     assign branch_taken = (EXE_pc_target_sel == `PC_SRC_BRANCH);
 
     assign FCH_squash = branch_taken;
+    assign FCH_bubble = 'b0;
     assign FCH_stall  = imem_stall || dmem_stall || load_use_stall;
 
-    assign DCD_squash = imem_stall || branch_taken;
+    assign DCD_squash = branch_taken;
+    assign DCD_bubble = imem_stall;
     assign DCD_stall  = dmem_stall || load_use_stall;
 
-    assign EXE_squash = load_use_stall;
+    assign EXE_squash = 'b0;
+    assign EXE_bubble = load_use_stall;
     assign EXE_stall  = dmem_stall;
 
     assign MEM_squash = 'b0;
+    assign MEM_bubble = 'b0;
     assign MEM_stall  = dmem_stall;
 
     assign WB_squash = 'b0;
+    assign WB_bubble = 'b0;
     assign WB_stall  = dmem_stall;
 
 
