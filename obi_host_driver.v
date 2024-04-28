@@ -47,7 +47,7 @@ module obi_host_driver(
 
     always @ (*) begin
         if (!read_outstanding) begin
-            read_accepted    = (rd_i && gnt_i);
+            read_accepted    = (read && gnt_i);
             req              = (rd_i || wr_i) || request_stall_r;
             response_stall_a = 'b0;
         end else begin
@@ -77,21 +77,25 @@ module obi_host_driver(
 
     reg [63:0] addr_saved, wdata_saved;
     reg [7:0]  be_saved;
-    reg        we_saved;
+    reg        we_saved, rd_saved, mem_read;
 
     always @(posedge clk_i) begin
         if (!rst_ni) begin
+            read_saved  <= 'b0;
             we_saved    <= 'b0;
             be_saved    <= 'b0;
             addr_saved  <= 'b0;
             wdata_saved <= 'b0;
         end else if (~stall && req) begin
+            rd_saved    <= rd_i;
             we_saved    <= wr_i;
             be_saved    <= be_i;
             addr_saved  <= addr_i;
             wdata_saved <= wdata_i;
         end
     end
+
+    assign read = (stall) ? read_saved : rd_i;
     
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
