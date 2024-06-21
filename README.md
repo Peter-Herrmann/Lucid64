@@ -1,5 +1,5 @@
 # Lucid64
-[![RISC-V Arch Tests](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/build-ubuntu.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/build-ubuntu.yml) [![Lint](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/lint.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/lint.yml) [![Synthesis](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/synthesis.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/synthesis.yml)
+[![RISC-V Arch Tests](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/github_run.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/github_run.yml) [![Synthesis](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/synthesis.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/synthesis.yml)
 
 A 64-bit RISC-V core written with plain and simple Verilog. The core is a 5-stage, in-order RV64IMAC_Zicsr_Zifencei processor that prioritizes readability with minimal tool-specific knowledge (no exotic language features, code generation, excessive configurability).
 
