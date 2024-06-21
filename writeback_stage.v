@@ -5,7 +5,7 @@
 //              all writes to the register file.                                                 //
 // Author     : Peter Herrmann                                                                   //
 //                                                                                               //
-// SPDX-License-Identifier: Apache-2.0                                                           //
+// SPDX-License-Identifier: CC-BY-NC-ND-4.0                                                      //
 //                                                                                               //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 `include "Lucid64.vh"
@@ -13,32 +13,33 @@
 
 module writeback_stage (
     //======= Clocks, Resets, and Stage Controls ========//
-    input               clk_i,
-    input               rst_ni,
+    input                       clk_i,
+    input                       rst_ni,
     
-    input               squash_i,
-    input               bubble_i,
-    input               stall_i,
+    input                       squash_i,
+    input                       bubble_i,
+    input                       stall_i,
 
     //============= Memory Pipeline Inputs ==============//
-    input               valid_i,
+    input                       valid_i,
     // Destination Register (rd)
-    input       [63:0]  rd_data_i,
-    input       [4:0]   rd_idx_i,
-    input               rd_wr_en_i,
-    input       [2:0]   rd_wr_src_1h_i,
+    input       [`XLEN-1:0]     rd_data_i,
+    input       [4:0]           rd_idx_i,
+    input                       rd_wr_en_i,
+    input                       rd_wr_src_load_i,
     // Data Memory Load Inputs
-    input        [63:0] dmem_rdata_i,
-    input        [3:0]  mem_width_1h_i,
-    input               mem_sign_i,
-    input        [2:0]  byte_addr_i,
+    input        [`XLEN-1:0]    dmem_rdata_i,
+    input        [3:0]          mem_width_1h_i,
+    input                       mem_sign_i,
+    input        [2:0]          byte_addr_i,
 
     //============= Register File Controls ==============//
-    output wire [63:0]  rd_data_o,
-    output wire [4:0]   rd_idx_o,
-    output wire         rd_wr_en_o,
+    output wire [`XLEN-1:0]     rd_data_ao,
+    output wire [4:0]           rd_idx_ao,
+    output wire                 rd_wr_en_ao,
 
-    output wire valid_ao
+    output wire                 inst_retired_ao,
+    output wire                 valid_ao
 );
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,14 +49,14 @@ module writeback_stage (
     wire valid;
 
     validity_tracker WB_validity_tracker (
-        .clk_i,
-        .rst_ni,
+        .clk_i          (clk_i),
+        .rst_ni         (rst_ni),
 
-        .valid_i,
+        .valid_i        (valid_i),
         
-        .squash_i,
-        .bubble_i,
-        .stall_i,
+        .squash_i       (squash_i),
+        .bubble_i       (bubble_i),
+        .stall_i        (stall_i),
 
         .valid_ao       (valid)
     );
@@ -65,11 +66,11 @@ module writeback_stage (
     //                                    Byte Addressing Logic                                  //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire [7:0]  bytes [0:7];
-    wire [15:0] halfs [0:3];
-    wire [31:0] words [0:1];
-    reg [63:0] load_data_sliced;
-    reg        msb;
+    wire [7:0]      bytes [0:7];
+    wire [15:0]     halfs [0:3];
+    wire [31:0]     words [0:1];
+    reg [`XLEN-1:0] load_data_sliced;
+    reg             msb;
 
 
     assign { bytes[7], bytes[6], bytes[5], bytes[4], 
@@ -93,7 +94,7 @@ module writeback_stage (
                 load_data_sliced = { {32{msb}}, words[byte_addr_i[2]] };
             end
             `MEM_WIDTH_1H_DOUBLE: begin
-                msb              = dmem_rdata_i[63];
+                msb              = dmem_rdata_i[`XLEN-1];
                 load_data_sliced = dmem_rdata_i;
             end
             default: begin
@@ -109,15 +110,12 @@ module writeback_stage (
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     // Update load instuctions with correct source (alu/pc sources handled in execute) 
-    assign rd_data_o  = (rd_wr_src_1h_i[1]) ? load_data_sliced : rd_data_i;
-    assign rd_idx_o   = rd_idx_i;
-    assign rd_wr_en_o = rd_wr_en_i && valid && ~stall_i;
+    assign rd_data_ao  = (rd_wr_src_load_i) ? load_data_sliced : rd_data_i;
+    assign rd_idx_ao   = rd_idx_i;
+    assign rd_wr_en_ao = rd_wr_en_i && valid && ~stall_i;
 
-    assign valid_ao = valid;
-
-`ifdef VERILATOR
-    wire _unused = &{rd_wr_src_1h_i};
-`endif
+    assign inst_retired_ao = valid && ~stall_i;
+    assign valid_ao        = valid;
 
 endmodule
 
@@ -125,11 +123,11 @@ endmodule
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////   Copyright 2024 Peter Herrmann                                                           ////
 ////                                                                                           ////
-////   Licensed under the Apache License, Version 2.0 (the "License");                         ////
-////   you may not use this file except in compliance with the License.                        ////
-////   You may obtain a copy of the License at                                                 ////
+////   Licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0         ////
+////   International License (the "License"); you may not use this file except in compliance   ////
+////   with the License. You may obtain a copy of the License at                               ////
 ////                                                                                           ////
-////       http://www.apache.org/licenses/LICENSE-2.0                                          ////
+////       https://creativecommons.org/licenses/by-nc-nd/4.0/                                  ////
 ////                                                                                           ////
 ////   Unless required by applicable law or agreed to in writing, software                     ////
 ////   distributed under the License is distributed on an "AS IS" BASIS,                       ////
