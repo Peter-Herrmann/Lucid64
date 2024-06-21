@@ -10,77 +10,48 @@
 // SPDX-License-Identifier: Apache-2.0                                                           //
 //                                                                                               //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-`include "Lucid64.vh"
 
-
-module obi_host_driver(
+module obi_host_driver #(
+    parameter DATA_W  = 64, 
+    parameter ADDR_W  = 39,
+    parameter BE_BITS = (DATA_W / 8 )
+    ) (
     //======= Clock, Reset, and Memory Flow Control ======//
-    input              clk_i,
-    input              rst_ni,
+    input                   clk_i,
+    input                   rst_ni,
 
-    input              gnt_i,
-    input              rvalid_i,
+    input                   gnt_i,
+    input                   rvalid_i,
 
-    input              stall_i,
+    input                   stall_i,
 
     //============== Host Memory Controls ===============//
-    input [7:0]        be_i,
-    input [63:0]       addr_i,
-    input [63:0]       wdata_i,
-    input              rd_i,
-    input              wr_i,
+    input [BE_BITS-1:0]     be_i,
+    input [ADDR_W-1:0]      addr_i,
+    input [DATA_W-1:0]      wdata_i,
+    input                   rd_i,
+    input                   wr_i,
 
     //===================== Outputs =====================//
-    output wire        stall_ao,
+    output wire                 stall_ao,
     // Memory request outputs
-    output wire        req_o,
-    output wire        we_ao,
-    output wire [7:0]  be_ao,
-    output wire [63:0] addr_ao,
-    output wire [63:0] wdata_ao
-);
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                 Transaction State Machine                                 //
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    reg  response_stall_a, req,   read_outstanding, read_accepted, request_stall_r;
-
-    always @ (*) begin
-        if (!read_outstanding) begin
-            read_accepted    = (read && gnt_i);
-            req              = (rd_i || wr_i) || request_stall_r;
-            response_stall_a = 'b0;
-        end else begin
-            read_accepted    = !(rvalid_i && ~(rd_i && gnt_i));
-            req              =   rvalid_i &&  (rd_i || wr_i);
-            response_stall_a = !rvalid_i;
-        end
-    end
-
-    always @(posedge clk_i) begin
-        if (~rst_ni) begin
-            read_outstanding <= 'b0;
-            request_stall_r  <= 'b0;
-        end else begin
-            read_outstanding <= read_accepted;
-            request_stall_r  <= request_stall_a;
-        end
-    end
-
-    wire request_stall_a = req && (!gnt_i);
-    wire stall           = request_stall_r || response_stall_a || stall_i;
+    output wire                 req_o,
+    output wire                 we_ao,
+    output wire [BE_BITS-1:0]   be_ao,
+    output wire [ADDR_W-1:0]    addr_ao,
+    output wire [DATA_W-1:0]    wdata_ao
+    );
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                       Output Rewinder                                     //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    reg [63:0] addr_saved, wdata_saved;
-    reg [7:0]  be_saved;
-    reg        we_saved, read_saved;
-    wire       read;
+    reg [ADDR_W-1:0]    addr_saved;
+    reg [DATA_W-1:0]    wdata_saved;
+    reg [BE_BITS-1:0]   be_saved;
+    reg                 we_saved, read_saved, req;
+    wire                read, stall;
 
     always @(posedge clk_i) begin
         if (!rst_ni) begin
@@ -99,7 +70,38 @@ module obi_host_driver(
     end
 
     assign read = (stall) ? read_saved : rd_i;
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                 Transaction State Machine                                 //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    reg  read_outstanding, read_accepted, request_stall_r;
+
+    wire response_stall_a = read_outstanding ? ~rvalid_i : 'b0;
+    wire request_stall_a  = req && (~gnt_i);
+
+    always @(posedge clk_i) begin
+        if (~rst_ni) begin
+            read_outstanding <= 'b0;
+            request_stall_r  <= 'b0;
+        end else begin
+            read_outstanding <= read_accepted;
+            request_stall_r  <= request_stall_a;
+        end
+    end
+
+    always @ (*) begin
+        if (read_outstanding) begin
+            read_accepted    = !(rvalid_i && !(rd_i && gnt_i));
+            req              =   rvalid_i &&  (rd_i || wr_i);
+        end else begin
+            read_accepted    = (read && gnt_i);
+            req              = (rd_i || wr_i) || request_stall_r;
+        end 
+    end
     
+    assign stall = request_stall_r || response_stall_a || stall_i;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                          Outputs                                          //

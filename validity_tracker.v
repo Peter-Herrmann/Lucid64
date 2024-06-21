@@ -3,7 +3,7 @@
 // Module Name: validity_tracker                                                                 //
 // Description: This module tracks the validity of a pipeline stage. It manages stalls, squashes //
 //              (explicit invalidation), bubbles (invalid instructions introduced into a         //
-//              pipeline), and validity inheritance from pervious stages. It handles hazards     //
+//              pipeline), and validity inheritance from previous stages. It handles hazards     //
 //              associated with multiple conditions (i.e. squash during bubbles or stalls)       //
 //              occuring at the same time.                                                       //
 // Author     : Peter Herrmann                                                                   //
@@ -29,7 +29,7 @@ module validity_tracker (
 
 
     always @(posedge clk_i) begin
-        if (~rst_ni || ~stall_i) 
+        if (~rst_ni || (~stall_i && ~bubble_i)) 
             squashed_during_stall   <= 'b0;
         else if (stall_i && squash_i) 
             squashed_during_stall   <= 'b1;
@@ -37,7 +37,7 @@ module validity_tracker (
 
 
     always @(posedge clk_i) begin
-        if (~rst_ni || ~bubble_i) 
+        if (~rst_ni || (~stall_i && ~bubble_i)) 
             squashed_during_bubble   <= 'b0;
         else if (bubble_i && squash_i) 
             squashed_during_bubble   <= 'b1;
