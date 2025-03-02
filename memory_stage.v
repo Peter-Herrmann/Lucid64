@@ -84,7 +84,6 @@ module memory_stage #(parameter VADDR = 39) (
     output reg [`XLEN   - 1 : 0] rvfi_mem_addr_o,
     output reg [`XLEN/8 - 1 : 0] rvfi_mem_rmask_o,
     output reg [`XLEN/8 - 1 : 0] rvfi_mem_wmask_o,
-    output reg [`XLEN   - 1 : 0] rvfi_mem_rdata_o,
     output reg [`XLEN   - 1 : 0] rvfi_mem_wdata_o
 `endif
 );
@@ -231,7 +230,7 @@ module memory_stage #(parameter VADDR = 39) (
         rvfi_rs2_rdata_o  = rvfi_rs2_rdata_i;
         rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
         rvfi_pc_wdata_o   = rvfi_pc_wdata_i;
-        rvfi_mem_addr_o   = dmem_addr_ao;
+        rvfi_mem_addr_o   = 64'(dmem_addr_ao);
         rvfi_mem_rmask_o  = dmem_be_ao;
         rvfi_mem_wmask_o  = dmem_be_ao;
         rvfi_mem_wdata_o  = dmem_wdata_ao;

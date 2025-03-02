@@ -374,8 +374,8 @@ module decode_stage #(parameter VADDR = 39) (
         rvfi_insn_o       = inst_i;
         rvfi_trap_o       = illegal_inst_ex_o;
         rvfi_intr_o       = rvfi_intr_i;
-        rvfi_pc_rdata_o   = pc_o;
-        rvfi_pc_wdata_o   = next_pc;
+        rvfi_pc_rdata_o   = 64'(pc_o);
+        rvfi_pc_wdata_o   = 64'(next_pc);
     end
 
 `endif

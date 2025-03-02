@@ -180,10 +180,10 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire DCD_ecall_ex, DCD_ebreak_ex, DCD_mret, DCD_wait_for_int, DCD_illegal_inst_ex, DCD_fencei;
     
 `ifdef LUCID64_RVFI
-    wire                    DCD_rvfi_intr
+    wire                    DCD_rvfi_intr;
     wire                    DCD_rvfi_trap;
     wire [31:0]             DCD_rvfi_insn;
-    wire [`XLEN-1:0]        DCD_rvfi_pc_rdata;
+    wire [`XLEN-1:0]        DCD_rvfi_pc_rdata, DCD_rvfi_pc_wdata;
 `endif
 
     decode_stage #(.VADDR(VADDR)) DCD (
@@ -264,7 +264,7 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .rvfi_trap_o          (DCD_rvfi_trap),
         .rvfi_intr_o          (DCD_rvfi_intr),
         .rvfi_pc_rdata_o      (DCD_rvfi_pc_rdata),
-        .rvfi_pc_wdata_o      (DCD_rvfi_pc_wdata),
+        .rvfi_pc_wdata_o      (DCD_rvfi_pc_wdata)
 `endif
     );
 
@@ -393,14 +393,13 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
 
         .rvfi_insn_o          (EXE_rvfi_insn),
         .rvfi_trap_o          (EXE_rvfi_trap),
-        .rvfi_halt_o          (EXE_rvfi_halt),
         .rvfi_intr_o          (EXE_rvfi_intr),
         .rvfi_rs1_addr_o      (EXE_rvfi_rs1_addr),
         .rvfi_rs2_addr_o      (EXE_rvfi_rs2_addr),
         .rvfi_rs1_rdata_o     (EXE_rvfi_rs1_rdata),
         .rvfi_rs2_rdata_o     (EXE_rvfi_rs2_rdata),
         .rvfi_pc_rdata_o      (EXE_rvfi_pc_rdata),
-        .rvfi_pc_wdata_o      (EXE_rvfi_pc_wdata),
+        .rvfi_pc_wdata_o      (EXE_rvfi_pc_wdata)
 `endif
     );
 

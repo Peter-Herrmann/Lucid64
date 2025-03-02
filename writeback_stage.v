@@ -55,7 +55,6 @@ module writeback_stage (
     input [`XLEN   - 1 : 0]      rvfi_mem_addr_i,
     input [`XLEN/8 - 1 : 0]      rvfi_mem_rmask_i,
     input [`XLEN/8 - 1 : 0]      rvfi_mem_wmask_i,
-    input [`XLEN   - 1 : 0]      rvfi_mem_rdata_i,
     input [`XLEN   - 1 : 0]      rvfi_mem_wdata_i,
 
     output reg                   rvfi_valid_o,
@@ -166,7 +165,7 @@ module writeback_stage (
 
     reg [63:0] rvfi_order = '0;
 
-    always @(posedge clk) begin
+    always @(posedge clk_i) begin
         if (inst_retired_ao)
             rvfi_order <= rvfi_order + 64'd1;
     end

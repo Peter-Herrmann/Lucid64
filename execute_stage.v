@@ -360,7 +360,7 @@ module execute_stage #(parameter VADDR = 39) (
         rvfi_rs1_rdata_o  = rs1_data;
         rvfi_rs2_rdata_o  = rs2_data;
         rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
-        rvfi_pc_wdata_o   = branch_o ? target_addr_o : rvfi_pc_wdata_i;
+        rvfi_pc_wdata_o   = branch_o ? 64'(target_addr_o) : 64'(rvfi_pc_wdata_i);
     end
 
 `endif
