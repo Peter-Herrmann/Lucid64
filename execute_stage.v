@@ -106,6 +106,25 @@ module execute_stage #(parameter VADDR = 39) (
     output reg              mem_rd_o,
     output reg              mem_wr_o,
     output reg              mem_sign_o
+
+`ifdef LUCID64_RVFI
+    ,
+    input [  32 - 1 : 0]         rvfi_insn_i,
+    input                        rvfi_trap_i,
+    input                        rvfi_intr_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_wdata_i,
+
+    output reg [  32 - 1 : 0]    rvfi_insn_o,
+    output reg                   rvfi_trap_o,
+    output reg                   rvfi_intr_o,
+    output reg [   5 - 1 : 0]    rvfi_rs1_addr_o,
+    output reg [   5 - 1 : 0]    rvfi_rs2_addr_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs1_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs2_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_wdata_o
+`endif
     );
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -324,6 +343,28 @@ module execute_stage #(parameter VADDR = 39) (
         // Program counter 
         pc_o             <= (stall_i) ? pc_o             : pc_i;
     end
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                  RISC-V Formal Interface                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+`ifdef LUCID64_RVFI
+
+    always @(*) begin
+        rvfi_insn_o       = rvfi_insn_i;
+        rvfi_trap_o       = rvfi_trap_i | exception;
+        rvfi_intr_o       = rvfi_intr_i;
+        rvfi_rs1_addr_o   = rs1_idx_i;
+        rvfi_rs2_addr_o   = rs2_idx_i;
+        rvfi_rs1_rdata_o  = rs1_data;
+        rvfi_rs2_rdata_o  = rs2_data;
+        rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
+        rvfi_pc_wdata_o   = branch_o ? target_addr_o : rvfi_pc_wdata_i;
+    end
+
+`endif
+
 
 endmodule
 

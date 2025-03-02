@@ -40,6 +40,46 @@ module writeback_stage (
 
     output wire                 inst_retired_ao,
     output wire                 valid_ao
+
+`ifdef LUCID64_RVFI
+    ,
+    input [  32 - 1 : 0]         rvfi_insn_i,
+    input                        rvfi_trap_i,
+    input                        rvfi_intr_i,
+    input [   5 - 1 : 0]         rvfi_rs1_addr_i,
+    input [   5 - 1 : 0]         rvfi_rs2_addr_i,
+    input [`XLEN - 1 : 0]        rvfi_rs1_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_rs2_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_wdata_i,
+    input [`XLEN   - 1 : 0]      rvfi_mem_addr_i,
+    input [`XLEN/8 - 1 : 0]      rvfi_mem_rmask_i,
+    input [`XLEN/8 - 1 : 0]      rvfi_mem_wmask_i,
+    input [`XLEN   - 1 : 0]      rvfi_mem_rdata_i,
+    input [`XLEN   - 1 : 0]      rvfi_mem_wdata_i,
+
+    output reg                   rvfi_valid_o,
+    output reg [  64 - 1 : 0]    rvfi_order_o,
+    output reg [  32 - 1 : 0]    rvfi_insn_o,
+    output reg                   rvfi_trap_o,
+    output reg                   rvfi_halt_o,
+    output reg                   rvfi_intr_o,
+    output reg [2    - 1 : 0]    rvfi_mode_o,
+    output reg [2    - 1 : 0]    rvfi_ixl_o,
+    output reg [   5 - 1 : 0]    rvfi_rs1_addr_o,
+    output reg [   5 - 1 : 0]    rvfi_rs2_addr_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs1_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs2_rdata_o,
+    output reg [   5 - 1 : 0]    rvfi_rd_addr_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rd_wdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_wdata_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_addr_o,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_rmask_o,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_wmask_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_rdata_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_wdata_o
+`endif
 );
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -116,6 +156,46 @@ module writeback_stage (
 
     assign inst_retired_ao = valid && ~stall_i;
     assign valid_ao        = valid;
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                  RISC-V Formal Interface                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+`ifdef LUCID64_RVFI
+
+    reg [63:0] rvfi_order = '0;
+
+    always @(posedge clk) begin
+        if (inst_retired_ao)
+            rvfi_order <= rvfi_order + 64'd1;
+    end
+
+    always @(*) begin
+        rvfi_valid_o      = inst_retired_ao;
+        rvfi_order_o      = rvfi_order;
+        rvfi_insn_o       = rvfi_insn_i;
+        rvfi_trap_o       = rvfi_trap_i;
+        rvfi_halt_o       = 1'b0;
+        rvfi_intr_o       = rvfi_intr_i;
+        rvfi_mode_o       = 2'd3; // Machine mode
+        rvfi_ixl_o        = 2'd2; // 64 bit
+        rvfi_rs1_addr_o   = rvfi_rs1_addr_i;
+        rvfi_rs2_addr_o   = rvfi_rs2_addr_i;
+        rvfi_rs1_rdata_o  = rvfi_rs1_rdata_i;
+        rvfi_rs2_rdata_o  = rvfi_rs2_rdata_i;
+        rvfi_rd_addr_o    = rd_idx_ao;
+        rvfi_rd_wdata_o   = rd_data_ao;
+        rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
+        rvfi_pc_wdata_o   = rvfi_pc_wdata_i;
+        rvfi_mem_addr_o   = rvfi_mem_addr_i;
+        rvfi_mem_rmask_o  = rvfi_mem_rmask_i;
+        rvfi_mem_wmask_o  = rvfi_mem_wmask_i;
+        rvfi_mem_rdata_o  = load_data_sliced; // Should this be raw word?
+        rvfi_mem_wdata_o  = rvfi_mem_wdata_i;
+    end
+
+`endif
 
 endmodule
 

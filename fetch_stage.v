@@ -45,6 +45,11 @@ module fetch_stage #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     output reg              valid_o,
     output reg [VADDR-1:0]  pc_o,
     output reg [VADDR-1:0]  next_pc_o
+
+`ifdef LUCID64_RVFI
+    ,
+    output reg                   rvfi_intr_o
+`endif
 );
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -190,6 +195,19 @@ module fetch_stage #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         pc_o      <= (stall_i ? pc_o      : pc_out);
         next_pc_o <= (stall_i ? next_pc_o : pc_out + 4);
     end
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                  RISC-V Formal Interface                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+`ifdef LUCID64_RVFI
+
+    always @(*) begin
+        rvfi_intr_o = csr_branch_i || trap_ret_i;
+    end
+
+`endif
 
 
 endmodule

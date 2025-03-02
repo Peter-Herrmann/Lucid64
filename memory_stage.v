@@ -59,6 +59,34 @@ module memory_stage #(parameter VADDR = 39) (
     output reg  [3:0]       mem_width_1h_o,
     output reg              mem_sign_o,
     output reg  [2:0]       byte_addr_o
+
+`ifdef LUCID64_RVFI
+    ,
+    input [  32 - 1 : 0]         rvfi_insn_i,
+    input                        rvfi_trap_i,
+    input                        rvfi_intr_i,
+    input [   5 - 1 : 0]         rvfi_rs1_addr_i,
+    input [   5 - 1 : 0]         rvfi_rs2_addr_i,
+    input [`XLEN - 1 : 0]        rvfi_rs1_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_rs2_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_wdata_i,
+
+    output reg [  32 - 1 : 0]    rvfi_insn_o,
+    output reg                   rvfi_trap_o,
+    output reg                   rvfi_intr_o,
+    output reg [   5 - 1 : 0]    rvfi_rs1_addr_o,
+    output reg [   5 - 1 : 0]    rvfi_rs2_addr_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs1_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs2_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_wdata_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_addr_o,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_rmask_o,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_wmask_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_rdata_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_wdata_o
+`endif
 );
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -185,6 +213,32 @@ module memory_stage #(parameter VADDR = 39) (
         mem_sign_o       <= (stall_i) ? mem_sign_o       : mem_sign_i;
         byte_addr_o      <= (stall_i) ? byte_addr_o      : dmem_full_addr_i[2:0];
     end
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                  RISC-V Formal Interface                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+`ifdef LUCID64_RVFI
+
+    always @(*) begin
+        rvfi_insn_o       = rvfi_insn_i;
+        rvfi_trap_o       = rvfi_trap_i | exception;
+        rvfi_intr_o       = rvfi_intr_i;
+        rvfi_rs1_addr_o   = rvfi_rs1_addr_i;
+        rvfi_rs2_addr_o   = rvfi_rs2_addr_i;
+        rvfi_rs1_rdata_o  = rvfi_rs1_rdata_i;
+        rvfi_rs2_rdata_o  = rvfi_rs2_rdata_i;
+        rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
+        rvfi_pc_wdata_o   = rvfi_pc_wdata_i;
+        rvfi_mem_addr_o   = dmem_addr_ao;
+        rvfi_mem_rmask_o  = dmem_be_ao;
+        rvfi_mem_wmask_o  = dmem_be_ao;
+        rvfi_mem_wdata_o  = dmem_wdata_ao;
+    end
+
+`endif
+
 
 endmodule
 

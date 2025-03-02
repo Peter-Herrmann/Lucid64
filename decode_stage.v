@@ -86,6 +86,17 @@ module decode_stage #(parameter VADDR = 39) (
     output reg             wait_for_int_o,
     output reg             fencei_o
 
+`ifdef LUCID64_RVFI
+    ,
+    input                        rvfi_intr_i,
+
+    output reg [  32 - 1 : 0]    rvfi_insn_o,
+    output reg                   rvfi_trap_o,
+    output reg                   rvfi_intr_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_wdata_o
+`endif
+
     );
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -351,6 +362,23 @@ module decode_stage #(parameter VADDR = 39) (
         wait_for_int_o      <= (stall_i) ? wait_for_int_o    : wait_for_int;
         fencei_o            <= (stall_i) ? fencei_o          : fencei;
     end
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                  RISC-V Formal Interface                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+`ifdef LUCID64_RVFI
+
+    always @(*) begin
+        rvfi_insn_o       = inst_i;
+        rvfi_trap_o       = illegal_inst_ex_o;
+        rvfi_intr_o       = rvfi_intr_i;
+        rvfi_pc_rdata_o   = pc_o;
+        rvfi_pc_wdata_o   = next_pc;
+    end
+
+`endif
 
 
 endmodule

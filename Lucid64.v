@@ -40,6 +40,31 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     
     input                   dmem_rvalid_i,
     input       [`XLEN-1:0] dmem_rdata_i
+
+`ifdef LUCID64_RVFI
+    ,
+    output reg                   rvfi_valid,
+    output reg [  64 - 1 : 0]    rvfi_order,
+    output reg [  32 - 1 : 0]    rvfi_insn,
+    output reg                   rvfi_trap,
+    output reg                   rvfi_halt,
+    output reg                   rvfi_intr,
+    output reg [2    - 1 : 0]    rvfi_mode,
+    output reg [2    - 1 : 0]    rvfi_ixl,
+    output reg [   5 - 1 : 0]    rvfi_rs1_addr,
+    output reg [   5 - 1 : 0]    rvfi_rs2_addr,
+    output reg [`XLEN - 1 : 0]   rvfi_rs1_rdata,
+    output reg [`XLEN - 1 : 0]   rvfi_rs2_rdata,
+    output reg [   5 - 1 : 0]    rvfi_rd_addr,
+    output reg [`XLEN - 1 : 0]   rvfi_rd_wdata,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_rdata,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_wdata,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_addr,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_rmask,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_wmask,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_rdata,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_wdata
+`endif
     );
 
     // Stage Management Signals
@@ -81,6 +106,10 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire             EXE_branch, DCD_compress_instr;
     wire [VADDR-1:0] EXE_pc_target_addr, FCH_pc, FCH_next_pc;
 
+`ifdef LUCID64_RVFI
+    wire             FCH_rvfi_intr;
+`endif
+
 
     fetch_stage #(.VADDR(VADDR), .RESET_ADDR(RESET_ADDR)) FCH (
         //======= Clocks, Resets, and Stage Controls ========//
@@ -115,6 +144,11 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .valid_o            (FCH_valid),
         .pc_o               (FCH_pc),
         .next_pc_o          (FCH_next_pc)
+
+`ifdef LUCID64_RVFI
+        ,
+        .rvfi_intr_o          (FCH_rvfi_intr)
+`endif
     );
 
 
@@ -144,6 +178,13 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire [11:0]      csr_wr_addr;
     // Traps and Exceptions
     wire DCD_ecall_ex, DCD_ebreak_ex, DCD_mret, DCD_wait_for_int, DCD_illegal_inst_ex, DCD_fencei;
+    
+`ifdef LUCID64_RVFI
+    wire                    DCD_rvfi_intr
+    wire                    DCD_rvfi_trap;
+    wire [31:0]             DCD_rvfi_insn;
+    wire [`XLEN-1:0]        DCD_rvfi_pc_rdata;
+`endif
 
     decode_stage #(.VADDR(VADDR)) DCD (
         //======= Clocks, Resets, and Stage Controls ========//
@@ -214,6 +255,17 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .mret_o             (DCD_mret),
         .wait_for_int_o     (DCD_wait_for_int),
         .fencei_o           (DCD_fencei)
+
+`ifdef LUCID64_RVFI
+        ,
+        .rvfi_intr_i          (FCH_rvfi_intr),
+
+        .rvfi_insn_o          (DCD_rvfi_insn),
+        .rvfi_trap_o          (DCD_rvfi_trap),
+        .rvfi_intr_o          (DCD_rvfi_intr),
+        .rvfi_pc_rdata_o      (DCD_rvfi_pc_rdata),
+        .rvfi_pc_wdata_o      (DCD_rvfi_pc_wdata),
+`endif
     );
 
 
@@ -226,6 +278,14 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire [4:0]       EXE_rd_idx;
     wire [3:0]       EXE_mem_width_1h;
     wire             EXE_rd, EXE_wr, EXE_sign, EXE_wr_a;
+    
+`ifdef LUCID64_RVFI
+    wire                    EXE_rvfi_trap,      EXE_rvfi_intr;
+    wire [31:0]             EXE_rvfi_insn;
+    wire [4:0]              EXE_rvfi_rs1_addr,  EXE_rvfi_rs2_addr;
+    wire [`XLEN-1:0]        EXE_rvfi_rs1_rdata, EXE_rvfi_rs2_rdata;
+    wire [`XLEN-1:0]        EXE_rvfi_pc_rdata,  EXE_rvfi_pc_wdata;
+`endif
 
     execute_stage #(.VADDR(VADDR)) EXE (
         //======= Clocks, Resets, and Stage Controls ========//
@@ -322,6 +382,26 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .mem_sign_o         (EXE_sign),
         // Program Counter
         .pc_o               (EXE_pc)
+
+`ifdef LUCID64_RVFI
+        ,
+        .rvfi_insn_i          (DCD_rvfi_insn),
+        .rvfi_trap_i          (DCD_rvfi_trap),
+        .rvfi_intr_i          (DCD_rvfi_intr),
+        .rvfi_pc_rdata_i      (DCD_rvfi_pc_rdata),
+        .rvfi_pc_wdata_i      (DCD_rvfi_pc_wdata),
+
+        .rvfi_insn_o          (EXE_rvfi_insn),
+        .rvfi_trap_o          (EXE_rvfi_trap),
+        .rvfi_halt_o          (EXE_rvfi_halt),
+        .rvfi_intr_o          (EXE_rvfi_intr),
+        .rvfi_rs1_addr_o      (EXE_rvfi_rs1_addr),
+        .rvfi_rs2_addr_o      (EXE_rvfi_rs2_addr),
+        .rvfi_rs1_rdata_o     (EXE_rvfi_rs1_rdata),
+        .rvfi_rs2_rdata_o     (EXE_rvfi_rs2_rdata),
+        .rvfi_pc_rdata_o      (EXE_rvfi_pc_rdata),
+        .rvfi_pc_wdata_o      (EXE_rvfi_pc_wdata),
+`endif
     );
 
 
@@ -334,6 +414,17 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire [`XLEN-1:0] MEM_rd_data;
     wire [2:0]       MEM_byte_addr;
     wire             MEM_sign;
+    
+`ifdef LUCID64_RVFI
+    wire                    MEM_rvfi_trap,      MEM_rvfi_intr;
+    wire [31:0]             MEM_rvfi_insn;
+    wire [4:0]              MEM_rvfi_rs1_addr,  MEM_rvfi_rs2_addr;
+    wire [`XLEN-1:0]        MEM_rvfi_rs1_rdata, MEM_rvfi_rs2_rdata;
+    wire [`XLEN-1:0]        MEM_rvfi_pc_rdata,  MEM_rvfi_pc_wdata;
+    wire [`XLEN-1:0]        MEM_rvfi_mem_addr;
+    wire [`XLEN/8 - 1 : 0]  MEM_rvfi_mem_rmask, MEM_rvfi_mem_wmask;
+    wire [`XLEN-1:0]        MEM_rvfi_mem_wdata;
+`endif
 
 
     memory_stage #(.VADDR(VADDR)) MEM (
@@ -384,6 +475,33 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .mem_width_1h_o     (MEM_mem_width_1h),
         .mem_sign_o         (MEM_sign),
         .byte_addr_o        (MEM_byte_addr)
+
+`ifdef LUCID64_RVFI
+        ,
+        .rvfi_insn_i          (EXE_rvfi_insn),
+        .rvfi_trap_i          (EXE_rvfi_trap),
+        .rvfi_intr_i          (EXE_rvfi_intr),
+        .rvfi_rs1_addr_i      (EXE_rvfi_rs1_addr),
+        .rvfi_rs2_addr_i      (EXE_rvfi_rs2_addr),
+        .rvfi_rs1_rdata_i     (EXE_rvfi_rs1_rdata),
+        .rvfi_rs2_rdata_i     (EXE_rvfi_rs2_rdata),
+        .rvfi_pc_rdata_i      (EXE_rvfi_pc_rdata),
+        .rvfi_pc_wdata_i      (EXE_rvfi_pc_wdata),
+
+        .rvfi_insn_o          (MEM_rvfi_insn),
+        .rvfi_trap_o          (MEM_rvfi_trap),
+        .rvfi_intr_o          (MEM_rvfi_intr),
+        .rvfi_rs1_addr_o      (MEM_rvfi_rs1_addr),
+        .rvfi_rs2_addr_o      (MEM_rvfi_rs2_addr),
+        .rvfi_rs1_rdata_o     (MEM_rvfi_rs1_rdata),
+        .rvfi_rs2_rdata_o     (MEM_rvfi_rs2_rdata),
+        .rvfi_pc_rdata_o      (MEM_rvfi_pc_rdata),
+        .rvfi_pc_wdata_o      (MEM_rvfi_pc_wdata),
+        .rvfi_mem_addr_o      (MEM_rvfi_mem_addr),
+        .rvfi_mem_rmask_o     (MEM_rvfi_mem_rmask),
+        .rvfi_mem_wmask_o     (MEM_rvfi_mem_wmask),
+        .rvfi_mem_wdata_o     (MEM_rvfi_mem_wdata)
+`endif
     );
 
 
@@ -420,6 +538,45 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
 
         .inst_retired_ao    (WB_inst_retired),
         .valid_ao           (WB_valid)
+
+`ifdef LUCID64_RVFI
+        ,
+        .rvfi_insn_i          (MEM_rvfi_insn),
+        .rvfi_trap_i          (MEM_rvfi_trap),
+        .rvfi_intr_i          (MEM_rvfi_intr),
+        .rvfi_rs1_addr_i      (MEM_rvfi_rs1_addr),
+        .rvfi_rs2_addr_i      (MEM_rvfi_rs2_addr),
+        .rvfi_rs1_rdata_i     (MEM_rvfi_rs1_rdata),
+        .rvfi_rs2_rdata_i     (MEM_rvfi_rs2_rdata),
+        .rvfi_pc_rdata_i      (MEM_rvfi_pc_rdata),
+        .rvfi_pc_wdata_i      (MEM_rvfi_pc_wdata),
+        .rvfi_mem_addr_i      (MEM_rvfi_mem_addr),
+        .rvfi_mem_rmask_i     (MEM_rvfi_mem_rmask),
+        .rvfi_mem_wmask_i     (MEM_rvfi_mem_wmask),
+        .rvfi_mem_wdata_i     (MEM_rvfi_mem_wdata),
+
+        .rvfi_valid_o         (rvfi_valid),
+        .rvfi_order_o         (rvfi_order),
+        .rvfi_insn_o          (rvfi_insn),
+        .rvfi_trap_o          (rvfi_trap),
+        .rvfi_halt_o          (rvfi_halt),
+        .rvfi_intr_o          (rvfi_intr),
+        .rvfi_mode_o          (rvfi_mode),
+        .rvfi_ixl_o           (rvfi_ixl),
+        .rvfi_rs1_addr_o      (rvfi_rs1_addr),
+        .rvfi_rs2_addr_o      (rvfi_rs2_addr),
+        .rvfi_rs1_rdata_o     (rvfi_rs1_rdata),
+        .rvfi_rs2_rdata_o     (rvfi_rs2_rdata),
+        .rvfi_rd_addr_o       (rvfi_rd_addr),
+        .rvfi_rd_wdata_o      (rvfi_rd_wdata),
+        .rvfi_pc_rdata_o      (rvfi_pc_rdata),
+        .rvfi_pc_wdata_o      (rvfi_pc_wdata),
+        .rvfi_mem_addr_o      (rvfi_mem_addr),
+        .rvfi_mem_rmask_o     (rvfi_mem_rmask),
+        .rvfi_mem_wmask_o     (rvfi_mem_wmask),
+        .rvfi_mem_rdata_o     (rvfi_mem_rdata),
+        .rvfi_mem_wdata_o     (rvfi_mem_wdata)
+`endif
     );
 
 
