@@ -236,9 +236,17 @@ module memory_stage #(parameter VADDR = 39) (
                                8'b0;
 
     always @(posedge clk_i) begin
+        if (~rst_ni)
+            rvfi_trap_o       <= '0;
+        else if (squash_i || bubble_i)
+            rvfi_trap_o       <= '0;
+        else
+            rvfi_trap_o       <= rvfi_trap_i | (exception && valid);
+    end
+
+    always @(posedge clk_i) begin
         if (~stall_i) begin
             rvfi_insn_o       <= rvfi_insn_i;
-            rvfi_trap_o       <= rvfi_trap_i | exception;
             rvfi_intr_o       <= rvfi_intr_i;
             rvfi_rs1_addr_o   <= rvfi_rs1_addr_i;
             rvfi_rs2_addr_o   <= rvfi_rs2_addr_i;

@@ -358,9 +358,17 @@ module execute_stage #(parameter VADDR = 39) (
 `ifdef LUCID64_RVFI
 
     always @(posedge clk_i) begin
+        if (~rst_ni)
+            rvfi_trap_o       <= '0;
+        else if (squash_i || bubble_i)
+            rvfi_trap_o       <= '0;
+        else
+            rvfi_trap_o       <= rvfi_trap_i | (exception && valid);
+    end
+
+    always @(posedge clk_i) begin
         if (~stall_i) begin
             rvfi_insn_o       <= rvfi_insn_i;
-            rvfi_trap_o       <= rvfi_trap_i | exception;
             rvfi_intr_o       <= rvfi_intr_i;
             rvfi_rs1_addr_o   <= rs1_used_i ? rs1_idx_i : '0;
             rvfi_rs2_addr_o   <= rs2_used_i ? rs2_idx_i : '0;

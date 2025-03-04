@@ -164,14 +164,17 @@ module writeback_stage (
 `ifdef LUCID64_RVFI
 
     reg [63:0] rvfi_order = '0;
+    wire rvfi_valid;
+
+    assign rvfi_valid = (inst_retired_ao | rvfi_trap_i) && rst_ni;
 
     always @(posedge clk_i) begin
-        if (inst_retired_ao)
+        if (rvfi_valid)
             rvfi_order <= rvfi_order + 64'd1;
     end
 
     always @(*) begin
-        rvfi_valid_o      = inst_retired_ao && rst_ni;
+        rvfi_valid_o      = rvfi_valid;
         rvfi_order_o      = rvfi_order;
         rvfi_insn_o       = rvfi_insn_i;
         rvfi_trap_o       = rvfi_trap_i;
@@ -179,10 +182,10 @@ module writeback_stage (
         rvfi_intr_o       = rvfi_intr_i;
         rvfi_mode_o       = 2'd3; // Machine mode
         rvfi_ixl_o        = 2'd2; // 64 bit
-        rvfi_rs1_addr_o   = rvfi_rs1_addr_i;
-        rvfi_rs2_addr_o   = rvfi_rs2_addr_i;
-        rvfi_rs1_rdata_o  = rvfi_rs1_rdata_i;
-        rvfi_rs2_rdata_o  = rvfi_rs2_rdata_i;
+        rvfi_rs1_addr_o   = rvfi_trap_i ? '0 : rvfi_rs1_addr_i;
+        rvfi_rs2_addr_o   = rvfi_trap_i ? '0 : rvfi_rs2_addr_i;
+        rvfi_rs1_rdata_o  = rvfi_trap_i ? '0 : rvfi_rs1_rdata_i;
+        rvfi_rs2_rdata_o  = rvfi_trap_i ? '0 : rvfi_rs2_rdata_i;
         rvfi_rd_addr_o    = rd_wr_en_ao ? rd_idx_ao  : '0;
         rvfi_rd_wdata_o   = rd_wr_en_ao ? rd_data_ao : '0;
         rvfi_pc_rdata_o   = rvfi_pc_rdata_i;

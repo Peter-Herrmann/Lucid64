@@ -503,10 +503,18 @@ module decode_stage #(parameter VADDR = 39) (
 `ifdef LUCID64_RVFI
 
     always @(posedge clk_i) begin
+        if (~rst_ni)
+            rvfi_trap_o       <= '0;
+        else if (squash_i || bubble_i)
+            rvfi_trap_o       <= '0;
+        else
+            rvfi_trap_o       <= illegal_inst_ex && valid;
+    end
+
+    always @(posedge clk_i) begin
         if (~stall_i) begin
             rvfi_insn_o       <= inst_i[1:0] == 2'b11 ? inst_i : {16'b0, inst_i[15:0]};
-            rvfi_trap_o       <= illegal_inst_ex;
-            rvfi_intr_o       <= rvfi_intr_i;
+            rvfi_intr_o       <= rvfi_intr_i && rst_ni;
             rvfi_pc_rdata_o   <= 64'(pc_i);
             rvfi_pc_wdata_o   <= 64'(next_pc);
         end
