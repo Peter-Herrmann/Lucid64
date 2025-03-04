@@ -2,7 +2,8 @@
 //                                                                                               //
 // Module Name: register_file                                                                    //
 // Description: A 31 x XLEN register file with read-only-zero 0th register. Reads are            //
-//              asynchronous and writes happen on negedge.                                       //
+//              asynchronous and writes are synchronous. Write data is bypassed to the read port //
+//              in the case of RAW conflicts at the register file interfaces.
 // Author     : Peter Herrmann                                                                   //
 //                                                                                               //
 // SPDX-License-Identifier: CC-BY-NC-ND-4.0                                                      //
@@ -20,19 +21,31 @@ module register_file #( parameter XLEN = 64 ) (
     input       [XLEN-1:0] wr_data_i,   // Write data input
     input                  wr_en_i,     // Write strobe
 
-    output wire [XLEN-1:0] rs1_data_ao, // rs1 data output (async)
-    output wire [XLEN-1:0] rs2_data_ao  // rs2 data output (async)
+    output reg [XLEN-1:0] rs1_data_ao, // rs1 data output (async)
+    output reg [XLEN-1:0] rs2_data_ao  // rs2 data output (async)
 );
-    
+
     reg [XLEN-1:0] RF [31:1]; 
+    
+    reg            rs1_bypass, rs2_bypass;
+    reg [XLEN-1:0] rs1_rdata,  rs2_rdata;
 
-    // Read control. Returns 0 if reading from x0.
-    assign rs1_data_ao = (rs1_idx_i != 'b0) ? RF[rs1_idx_i] : 'b0;
-    assign rs2_data_ao = (rs2_idx_i != 'b0) ? RF[rs2_idx_i] : 'b0;
+    // Read control. 
+    always @(*) begin
+        rs1_bypass = (rs1_idx_i == rd_idx_i) && wr_en_i;
+        rs2_bypass = (rs2_idx_i == rd_idx_i) && wr_en_i;
 
+        // Bypass write data to decode stage. This is similar to having writes on negedge.
+        rs1_rdata  = rs1_bypass ? wr_data_i : RF[rs1_idx_i];
+        rs2_rdata  = rs2_bypass ? wr_data_i : RF[rs2_idx_i];
 
-    // Write control (On NEGEDGE). Will not write to x0.
-    always @ (negedge clk_i) begin
+        // Returns 0 if reading from x0.
+        rs1_data_ao = (rs1_idx_i != 'b0) ? rs1_rdata : 'b0;
+        rs2_data_ao = (rs2_idx_i != 'b0) ? rs2_rdata : 'b0;
+    end
+
+    // Write control. Will not write to x0.
+    always @ (posedge clk_i) begin
         if(wr_en_i && (rd_idx_i != 'b0)) 
             RF[rd_idx_i] <= wr_data_i;
     end

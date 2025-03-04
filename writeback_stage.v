@@ -154,7 +154,7 @@ module writeback_stage (
     assign rd_wr_en_ao = rd_wr_en_i && valid && ~stall_i;
 
     assign inst_retired_ao = valid && ~stall_i;
-    assign valid_ao        = valid;
+    assign valid_ao        = valid && rst_ni;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -171,7 +171,7 @@ module writeback_stage (
     end
 
     always @(*) begin
-        rvfi_valid_o      = inst_retired_ao;
+        rvfi_valid_o      = inst_retired_ao && rst_ni;
         rvfi_order_o      = rvfi_order;
         rvfi_insn_o       = rvfi_insn_i;
         rvfi_trap_o       = rvfi_trap_i;
@@ -183,8 +183,8 @@ module writeback_stage (
         rvfi_rs2_addr_o   = rvfi_rs2_addr_i;
         rvfi_rs1_rdata_o  = rvfi_rs1_rdata_i;
         rvfi_rs2_rdata_o  = rvfi_rs2_rdata_i;
-        rvfi_rd_addr_o    = rd_idx_ao;
-        rvfi_rd_wdata_o   = rd_data_ao;
+        rvfi_rd_addr_o    = rd_wr_en_ao ? rd_idx_ao  : '0;
+        rvfi_rd_wdata_o   = rd_wr_en_ao ? rd_data_ao : '0;
         rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
         rvfi_pc_wdata_o   = rvfi_pc_wdata_i;
         rvfi_mem_addr_o   = rvfi_mem_addr_i;

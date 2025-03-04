@@ -325,9 +325,15 @@ module execute_stage #(parameter VADDR = 39) (
     //               |_|                                    |___/                                //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            valid_o <= 1'b0;
+        else if (~stall_i)
+            valid_o <= valid && (~exception);
+    end
+
     always @(posedge clk_i) begin : execute_pipeline_registers
     // On stall, all outputs do not change.
-        valid_o          <= (stall_i) ? valid_o          : valid && (~exception);
         dmem_addr_o      <= (stall_i) ? dmem_addr_o      : I_alu_res[VADDR-1:0];
         rs2_data_o       <= (stall_i) ? rs2_data_o       : rs2_data;
         // Destination Register (rd)
@@ -351,16 +357,19 @@ module execute_stage #(parameter VADDR = 39) (
 
 `ifdef LUCID64_RVFI
 
-    always @(*) begin
-        rvfi_insn_o       = rvfi_insn_i;
-        rvfi_trap_o       = rvfi_trap_i | exception;
-        rvfi_intr_o       = rvfi_intr_i;
-        rvfi_rs1_addr_o   = rs1_idx_i;
-        rvfi_rs2_addr_o   = rs2_idx_i;
-        rvfi_rs1_rdata_o  = rs1_data;
-        rvfi_rs2_rdata_o  = rs2_data;
-        rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
-        rvfi_pc_wdata_o   = branch_o ? 64'(target_addr_o) : 64'(rvfi_pc_wdata_i);
+    always @(posedge clk_i) begin
+        if (~stall_i) begin
+            rvfi_insn_o       <= rvfi_insn_i;
+            rvfi_trap_o       <= rvfi_trap_i | exception;
+            rvfi_intr_o       <= rvfi_intr_i;
+            rvfi_rs1_addr_o   <= rs1_used_i ? rs1_idx_i : '0;
+            rvfi_rs2_addr_o   <= rs2_used_i ? rs2_idx_i : '0;
+            rvfi_rs1_rdata_o  <= rs1_used_i ? rs1_data  : '0;
+            rvfi_rs2_rdata_o  <= rs2_used_i ? rs2_data  : '0;
+            rvfi_pc_rdata_o   <= rvfi_pc_rdata_i;
+            rvfi_pc_wdata_o   <= branch_o ? 64'(target_addr_o) & `IALIGN_MASK : 
+                                            64'(rvfi_pc_wdata_i);
+        end
     end
 
 `endif

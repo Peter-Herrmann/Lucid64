@@ -47,7 +47,9 @@ module decoder #(parameter VADDR = 39) (
     output wire             fencei_ao,
     output wire             ecall_ex_ao,    
     output wire             mret_ao,        
-    output wire             wait_for_int_ao
+    output wire             wait_for_int_ao,
+
+    output wire             illegal_inst_ao
 );
 
     wire [6:0]  opcode = inst_i[6:0];
@@ -58,6 +60,8 @@ module decoder #(parameter VADDR = 39) (
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                      Load/Store Signals                                   //
     ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    wire illegal_mem_wd;
 
     always @(*) begin : mem_width_decoder
         case (func3[1:0])
@@ -73,6 +77,12 @@ module decoder #(parameter VADDR = 39) (
     assign mem_rd_ao = (opcode == `OPCODE_LOAD);
     assign mem_sign_ao = func3[2];
     
+    assign illegal_mem_wd = (mem_wr_ao || mem_rd_ao)          && 
+                            (func3[1:0] != `MEM_WIDTH_BYTE  ) &&
+                            (func3[1:0] != `MEM_WIDTH_HALF  ) &&
+                            (func3[1:0] != `MEM_WIDTH_WORD  ) &&
+                            (func3[1:0] != `MEM_WIDTH_DOUBLE);
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                              Integer Register File Controls                               //
@@ -161,6 +171,7 @@ module decoder #(parameter VADDR = 39) (
     assign wait_for_int_ao = sys_priv && func12 == `FUNC12_WFI;
     assign ebreak_ao       = sys_priv && func12 == `FUNC12_EBREAK;
 
+    assign illegal_inst_ao = illegal_mem_wd;
 
 endmodule
 

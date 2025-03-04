@@ -10,7 +10,8 @@
 `ifndef LUCID64_VH
 `define LUCID64_VH
 
-`define TODO_DUMMY 'b0 // Dummy value for development - remove before release
+`define TODO_DUMMY '0 // Dummy value for development - remove before release
+// `define LUCID64_RVFI
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //                                     Architectural Constants                                   //

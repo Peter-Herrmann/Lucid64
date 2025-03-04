@@ -150,7 +150,7 @@ module memory_stage #(parameter VADDR = 39) (
         endcase
     end
     
-    assign dmem_word_addr = {dmem_full_addr_i[VADDR-1:2], 2'b0};
+    assign dmem_word_addr = {dmem_full_addr_i[VADDR-1:3], 3'b0};
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -170,7 +170,8 @@ module memory_stage #(parameter VADDR = 39) (
 
         .stall_i  (stall_i),
 
-        .be_i     ((mem_write) ? byte_strobe : 8'b0),
+        // .be_i     ((mem_write) ? byte_strobe : 8'b0),
+        .be_i     (byte_strobe),
         .addr_i   (dmem_word_addr),
         .wdata_i  (dmem_wdata_a),
         .rd_i     (mem_read),
@@ -199,9 +200,15 @@ module memory_stage #(parameter VADDR = 39) (
     //               |_|                                    |___/                                //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            valid_o <= 1'b0;
+        else if (~stall_i)
+            valid_o <= valid && (~exception);
+    end
+
     always @(posedge clk_i) begin : execute_pipeline_registers
-    // On reset, all signals set to 0; on stall, all outputs do not change.
-        valid_o          <= (stall_i) ? valid_o          : valid && (~exception);
+    // On stall, all outputs do not change.
         // Destination Register (rd) 
         rd_data_o        <= (stall_i) ? rd_data_o        : rd_data_i;
         rd_idx_o         <= (stall_i) ? rd_idx_o         : rd_idx_i;
@@ -219,21 +226,31 @@ module memory_stage #(parameter VADDR = 39) (
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
 `ifdef LUCID64_RVFI
+    // RVFI Does not have strobes based on aligned addresses. Instead, the full memory address is
+    // used and the MEM_WD least significant bits of the address are set in the strobe.
+    wire [7:0] rvfi_mem_mask;
+    assign     rvfi_mem_mask = (mem_width_1h_i == `MEM_WIDTH_1H_BYTE)   ? 8'b0000_0001 :
+                               (mem_width_1h_i == `MEM_WIDTH_1H_HALF)   ? 8'b0000_0011 :
+                               (mem_width_1h_i == `MEM_WIDTH_1H_WORD)   ? 8'b0000_1111 :
+                               (mem_width_1h_i == `MEM_WIDTH_1H_DOUBLE) ? 8'b1111_1111 :
+                               8'b0;
 
-    always @(*) begin
-        rvfi_insn_o       = rvfi_insn_i;
-        rvfi_trap_o       = rvfi_trap_i | exception;
-        rvfi_intr_o       = rvfi_intr_i;
-        rvfi_rs1_addr_o   = rvfi_rs1_addr_i;
-        rvfi_rs2_addr_o   = rvfi_rs2_addr_i;
-        rvfi_rs1_rdata_o  = rvfi_rs1_rdata_i;
-        rvfi_rs2_rdata_o  = rvfi_rs2_rdata_i;
-        rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
-        rvfi_pc_wdata_o   = rvfi_pc_wdata_i;
-        rvfi_mem_addr_o   = 64'(dmem_addr_ao);
-        rvfi_mem_rmask_o  = dmem_be_ao;
-        rvfi_mem_wmask_o  = dmem_be_ao;
-        rvfi_mem_wdata_o  = dmem_wdata_ao;
+    always @(posedge clk_i) begin
+        if (~stall_i) begin
+            rvfi_insn_o       <= rvfi_insn_i;
+            rvfi_trap_o       <= rvfi_trap_i | exception;
+            rvfi_intr_o       <= rvfi_intr_i;
+            rvfi_rs1_addr_o   <= rvfi_rs1_addr_i;
+            rvfi_rs2_addr_o   <= rvfi_rs2_addr_i;
+            rvfi_rs1_rdata_o  <= rvfi_rs1_rdata_i;
+            rvfi_rs2_rdata_o  <= rvfi_rs2_rdata_i;
+            rvfi_pc_rdata_o   <= rvfi_pc_rdata_i;
+            rvfi_pc_wdata_o   <= rvfi_pc_wdata_i;
+            rvfi_mem_addr_o   <= 64'(dmem_full_addr_i);
+            rvfi_mem_rmask_o  <= dmem_we_ao ? '0            : rvfi_mem_mask;
+            rvfi_mem_wmask_o  <= dmem_we_ao ? rvfi_mem_mask : '0;
+            rvfi_mem_wdata_o  <= dmem_wdata_ao;
+        end
     end
 
 `endif

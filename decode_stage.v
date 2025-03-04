@@ -136,6 +136,7 @@ module decode_stage #(parameter VADDR = 39) (
     // Flow Control and Exceptions
     wire [5:0]       branch_cond_1h_uncompr;
     wire             branch_uncompr, ebreak_uncompr, ecall_ex, mret, wait_for_int, fencei;
+    wire             illegal_inst_uncompr;
     // CSR Signals
     wire             csr_rd_en, sys_csr;
     wire [`XLEN-1:0] csr_immed;
@@ -175,7 +176,8 @@ module decode_stage #(parameter VADDR = 39) (
         .fencei_ao         (fencei),
         .ecall_ex_ao       (ecall_ex),
         .mret_ao           (mret),
-        .wait_for_int_ao   (wait_for_int) 
+        .wait_for_int_ao   (wait_for_int),
+        .illegal_inst_ao   (illegal_inst_uncompr)
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -230,6 +232,127 @@ module decode_stage #(parameter VADDR = 39) (
         .ebreak_ao         (ebreak_compr),
         .illegal_inst_ao   (illegal_inst_compr) 
     );
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                            Reference Illegal Instruction Checker                          //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    reg legal_ref;
+
+    always @(*) begin
+		legal_ref = 0;
+
+		if (inst_i[6:0] == 7'b 01_101_11) legal_ref = 1; // LUI
+		if (inst_i[6:0] == 7'b 00_101_11) legal_ref = 1; // AUIPC
+		if (inst_i[6:0] == 7'b 11_011_11) legal_ref = 1; // JAL
+
+		if (inst_i[6:0] == 7'b 11_001_11) begin // JALR
+			legal_ref = inst_i[14:12] == 3'b 000;
+		end
+
+		if (inst_i[6:0] == 7'b 11_000_11) begin // BRANCH
+			legal_ref = (inst_i[14:12] != 3'b 010) && (inst_i[14:12] != 3'b 011);
+		end
+
+		if (inst_i[6:0] == 7'b 00_000_11) begin // LOAD
+			legal_ref = (inst_i[14:12] != 3'b 111);
+		end
+
+		if (inst_i[6:0] == 7'b 01_000_11) begin // STORE
+			legal_ref = (inst_i[14:12] == 3'b 000) || (inst_i[14:12] == 3'b 001) || (inst_i[14:12] == 3'b 010) || (inst_i[14:12] == 3'b 011);
+		end
+
+		if (inst_i[6:0] == 7'b 00_100_11) begin // OP-IMM
+			case (inst_i[14:12])
+				3'b 001: begin // SLLI
+					legal_ref = inst_i[31:26] == 6'b 000000;
+				end
+				3'b 101: begin // SRLI SRAI
+					legal_ref = (inst_i[31:26] == 6'b 000000) || (inst_i[31:26] == 6'b 010000);
+				end
+				default: begin
+					legal_ref = 1;
+				end
+			endcase
+		end
+
+		if (inst_i[6:0] == 7'b 01_100_11) begin // OP
+			case (inst_i[14:12])
+				3'b 000, 3'b 101: begin // ADD SUB SRL SRA
+					legal_ref = (inst_i[31:25] == 7'b 0000000) || (inst_i[31:25] == 7'b 0100000);
+				end
+				default: begin
+					legal_ref = inst_i[31:25] == 7'b 0000000;
+				end
+			endcase
+		end
+
+		if (inst_i[6:0] == 7'b 00_110_11) begin // OP-IMM-32
+			case (inst_i[14:12])
+				3'b 001: begin // SLLIW
+					legal_ref = inst_i[31:25] == 7'b 0000000;
+				end
+				3'b 101: begin // SRLIW SRAIW
+					legal_ref = (inst_i[31:25] == 7'b 0000000) || (inst_i[31:25] == 7'b 0100000);
+				end
+				3'b 000: begin // ADDIW
+					legal_ref = 1;
+				end
+                default: ;
+			endcase
+		end
+
+		if (inst_i[6:0] == 7'b 01_110_11) begin // OP-32
+			case (inst_i[14:12])
+				3'b 000, 3'b 101: begin // ADDW SUBW SRLW SRAW
+					legal_ref = (inst_i[31:25] == 7'b 0000000) || (inst_i[31:25] == 7'b 0100000);
+				end
+				3'b 001: begin // SLLW
+					legal_ref = inst_i[31:25] == 7'b 0000000;
+				end
+                default: ;
+			endcase
+		end
+
+		if (inst_i[1:0] != 2'b11) begin
+			casez (inst_i[15:0])
+				// RVC -- Quadrant 0
+				16'b 000_???_???_??_???_00: legal_ref = |inst_i[12:5];              // C.ADDI4SPN
+				16'b 010_???_???_??_???_00: legal_ref = 1;                        // C.LW
+				16'b 011_???_???_??_???_00: legal_ref = 1;                        // C.LD
+				16'b 110_???_???_??_???_00: legal_ref = 1;                        // C.SW
+				16'b 111_???_???_??_???_00: legal_ref = 1;                        // C.SD
+
+				// RVC -- Quadrant 1
+				16'b 000_?_??_???_??_???_01: legal_ref = 1;                       // C.NOP, C.ADDI
+				16'b 001_?_??_???_??_???_01: legal_ref = |inst_i[11:7];             // C.ADDIW
+				16'b 010_?_??_???_??_???_01: legal_ref = 1;                       // C.LI
+				16'b 011_?_??_???_??_???_01: legal_ref = |{inst_i[12], inst_i[6:2]};  // C.ADDI16SP, C.LUI
+				16'b 100_?_00_???_??_???_01: legal_ref = 1;                       // C.SRLI
+				16'b 100_?_01_???_??_???_01: legal_ref = 1;                       // C.SRAI
+				16'b 100_?_10_???_??_???_01: legal_ref = 1;                       // C.ANDI
+				16'b 100_0_11_???_00_???_01: legal_ref = 1;                       // C.SUB
+				16'b 100_0_11_???_01_???_01: legal_ref = 1;                       // C.XOR
+				16'b 100_0_11_???_10_???_01: legal_ref = 1;                       // C.OR
+				16'b 100_0_11_???_11_???_01: legal_ref = 1;                       // C.AND
+				16'b 100_1_11_???_00_???_01: legal_ref = 1;                       // C.SUBW
+				16'b 100_1_11_???_01_???_01: legal_ref = 1;                       // C.ADDW
+				16'b 101_?_??_???_??_???_01: legal_ref = 1;                       // C.J
+				16'b 110_?_??_???_??_???_01: legal_ref = 1;                       // C.BEQZ
+				16'b 111_?_??_???_??_???_01: legal_ref = 1;                       // C.BNEZ
+
+				// RVC -- Quadrant 2
+				16'b 000_?_?????_?????_10: legal_ref = 1;                         // C.SLLI
+				16'b 010_?_?????_?????_10: legal_ref = |inst_i[11:7];               // C.LWSP
+				16'b 011_?_?????_?????_10: legal_ref = |inst_i[11:7];               // C.LDSP
+				16'b 100_0_?????_?????_10: legal_ref = |inst_i[11:7] || |inst_i[6:2]; // C.MV and C.JR
+				16'b 100_1_?????_?????_10: legal_ref = |inst_i[11:2];             // C.JALR, C.ADD
+				16'b 110_?_?????_?????_10: legal_ref = 1;                         // C.SWSP
+				16'b 111_?_?????_?????_10: legal_ref = 1;                         // C.SDSP
+                default: ;
+			endcase
+		end
+	end
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -307,8 +430,11 @@ module decode_stage #(parameter VADDR = 39) (
     //                                Illegal Instruction Detector                               //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire illegal_inst_ex = compressed ? illegal_inst_compr : 'b0; // TODO: make complete illegal instruction logic
-
+    // wire illegal_inst_ex = compressed ? illegal_inst_compr : 'b0; // TODO: make complete illegal instruction logic
+    wire illegal_inst_ex = ~legal_ref | 
+                            (compressed  && illegal_inst_compr)   | 
+                            (~compressed && illegal_inst_uncompr) | 
+                            !(|inst_i);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //        ____  _            _ _              ____            _     _                        //
@@ -319,9 +445,15 @@ module decode_stage #(parameter VADDR = 39) (
     //               |_|                                    |___/                                //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            valid_o <= 1'b0;
+        else if (~stall_i)
+            valid_o <= valid;
+    end
+
     always @(posedge clk_i) begin : decode_pipeline_registers
     // On stall, all outputs do not change.
-        valid_o             <= (stall_i) ? valid_o           : valid;
         // Register Source 1 (rs1)
         rs1_idx_o           <= (stall_i) ? rs1_idx_o         : (rs1_used ? rs1_idx : 'b0);
         rs1_used_o          <= (stall_i) ? rs1_used_o        : rs1_used;
@@ -370,12 +502,14 @@ module decode_stage #(parameter VADDR = 39) (
 
 `ifdef LUCID64_RVFI
 
-    always @(*) begin
-        rvfi_insn_o       = inst_i;
-        rvfi_trap_o       = illegal_inst_ex_o;
-        rvfi_intr_o       = rvfi_intr_i;
-        rvfi_pc_rdata_o   = 64'(pc_o);
-        rvfi_pc_wdata_o   = 64'(next_pc);
+    always @(posedge clk_i) begin
+        if (~stall_i) begin
+            rvfi_insn_o       <= inst_i[1:0] == 2'b11 ? inst_i : {16'b0, inst_i[15:0]};
+            rvfi_trap_o       <= illegal_inst_ex;
+            rvfi_intr_o       <= rvfi_intr_i;
+            rvfi_pc_rdata_o   <= 64'(pc_i);
+            rvfi_pc_wdata_o   <= 64'(next_pc);
+        end
     end
 
 `endif

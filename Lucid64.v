@@ -605,7 +605,7 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .alu_stall_i        (alu_stall),
         .fencei_i           (fencei),
         .mem_exc_i          (unalign_store_ex || unalign_load_ex),
-        .trap_i             (mret || ecall_ex || ebreak_ex),
+        .trap_i             (mret || ecall_ex || ebreak_ex || illegal_inst_ex),
 
         //============= Pipeline State Inputs ===============//
         .EXE_branch_i       (EXE_branch),
