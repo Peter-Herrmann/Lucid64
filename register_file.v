@@ -12,7 +12,7 @@
 
 
 module register_file #( parameter XLEN = 64 ) (
-    input                  clk_i,       // Negedge sensitive
+    input                  clk_i,
 
     input            [4:0] rs1_idx_i,   // Register source 1 index
     input            [4:0] rs2_idx_i,   // Register source 2 index
