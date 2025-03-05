@@ -107,11 +107,6 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire             EXE_branch, DCD_compress_instr;
     wire [VADDR-1:0] EXE_pc_target_addr, FCH_pc, FCH_next_pc;
 
-`ifdef LUCID64_RVFI
-    wire             FCH_rvfi_intr;
-`endif
-
-
     fetch_stage #(.VADDR(VADDR), .RESET_ADDR(RESET_ADDR)) FCH (
         //======= Clocks, Resets, and Stage Controls ========//
         .clk_i              (clk_i),
@@ -145,11 +140,6 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .valid_o            (FCH_valid),
         .pc_o               (FCH_pc),
         .next_pc_o          (FCH_next_pc)
-
-`ifdef LUCID64_RVFI
-        ,
-        .rvfi_intr_o          (FCH_rvfi_intr)
-`endif
     );
 
 
@@ -181,7 +171,6 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire DCD_ecall_ex, DCD_ebreak_ex, DCD_mret, DCD_wait_for_int, DCD_illegal_inst_ex, DCD_fencei;
     
 `ifdef LUCID64_RVFI
-    wire                    DCD_rvfi_intr;
     wire                    DCD_rvfi_trap;
     wire [31:0]             DCD_rvfi_insn;
     wire [`XLEN-1:0]        DCD_rvfi_pc_rdata, DCD_rvfi_pc_wdata;
@@ -260,11 +249,8 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
 
 `ifdef LUCID64_RVFI
         ,
-        .rvfi_intr_i          (FCH_rvfi_intr),
-
         .rvfi_insn_o          (DCD_rvfi_insn),
         .rvfi_trap_o          (DCD_rvfi_trap),
-        .rvfi_intr_o          (DCD_rvfi_intr),
         .rvfi_pc_rdata_o      (DCD_rvfi_pc_rdata),
         .rvfi_pc_wdata_o      (DCD_rvfi_pc_wdata)
 `endif
@@ -282,7 +268,7 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire             EXE_rd, EXE_wr, EXE_sign, EXE_wr_a;
     
 `ifdef LUCID64_RVFI
-    wire                    EXE_rvfi_trap,      EXE_rvfi_intr;
+    wire                    EXE_rvfi_trap;
     wire [31:0]             EXE_rvfi_insn;
     wire [4:0]              EXE_rvfi_rs1_addr,  EXE_rvfi_rs2_addr;
     wire [`XLEN-1:0]        EXE_rvfi_rs1_rdata, EXE_rvfi_rs2_rdata;
@@ -390,13 +376,11 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         ,
         .rvfi_insn_i          (DCD_rvfi_insn),
         .rvfi_trap_i          (DCD_rvfi_trap),
-        .rvfi_intr_i          (DCD_rvfi_intr),
         .rvfi_pc_rdata_i      (DCD_rvfi_pc_rdata),
         .rvfi_pc_wdata_i      (DCD_rvfi_pc_wdata),
 
         .rvfi_insn_o          (EXE_rvfi_insn),
         .rvfi_trap_o          (EXE_rvfi_trap),
-        .rvfi_intr_o          (EXE_rvfi_intr),
         .rvfi_rs1_addr_o      (EXE_rvfi_rs1_addr),
         .rvfi_rs2_addr_o      (EXE_rvfi_rs2_addr),
         .rvfi_rs1_rdata_o     (EXE_rvfi_rs1_rdata),
@@ -418,7 +402,7 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire             MEM_sign;
     
 `ifdef LUCID64_RVFI
-    wire                    MEM_rvfi_trap,      MEM_rvfi_intr;
+    wire                    MEM_rvfi_trap;
     wire [31:0]             MEM_rvfi_insn;
     wire [4:0]              MEM_rvfi_rs1_addr,  MEM_rvfi_rs2_addr;
     wire [`XLEN-1:0]        MEM_rvfi_rs1_rdata, MEM_rvfi_rs2_rdata;
@@ -482,7 +466,6 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         ,
         .rvfi_insn_i          (EXE_rvfi_insn),
         .rvfi_trap_i          (EXE_rvfi_trap),
-        .rvfi_intr_i          (EXE_rvfi_intr),
         .rvfi_rs1_addr_i      (EXE_rvfi_rs1_addr),
         .rvfi_rs2_addr_i      (EXE_rvfi_rs2_addr),
         .rvfi_rs1_rdata_i     (EXE_rvfi_rs1_rdata),
@@ -492,7 +475,6 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
 
         .rvfi_insn_o          (MEM_rvfi_insn),
         .rvfi_trap_o          (MEM_rvfi_trap),
-        .rvfi_intr_o          (MEM_rvfi_intr),
         .rvfi_rs1_addr_o      (MEM_rvfi_rs1_addr),
         .rvfi_rs2_addr_o      (MEM_rvfi_rs2_addr),
         .rvfi_rs1_rdata_o     (MEM_rvfi_rs1_rdata),
@@ -545,7 +527,6 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         ,
         .rvfi_insn_i          (MEM_rvfi_insn),
         .rvfi_trap_i          (MEM_rvfi_trap),
-        .rvfi_intr_i          (MEM_rvfi_intr),
         .rvfi_rs1_addr_i      (MEM_rvfi_rs1_addr),
         .rvfi_rs2_addr_i      (MEM_rvfi_rs2_addr),
         .rvfi_rs1_rdata_i     (MEM_rvfi_rs1_rdata),

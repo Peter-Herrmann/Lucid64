@@ -112,13 +112,11 @@ module execute_stage #(parameter VADDR = 39) (
     ,
     input [  32 - 1 : 0]         rvfi_insn_i,
     input                        rvfi_trap_i,
-    input                        rvfi_intr_i,
     input [`XLEN - 1 : 0]        rvfi_pc_rdata_i,
     input [`XLEN - 1 : 0]        rvfi_pc_wdata_i,
 
     output reg [  32 - 1 : 0]    rvfi_insn_o,
     output reg                   rvfi_trap_o,
-    output reg                   rvfi_intr_o,
     output reg [   5 - 1 : 0]    rvfi_rs1_addr_o,
     output reg [   5 - 1 : 0]    rvfi_rs2_addr_o,
     output reg [`XLEN - 1 : 0]   rvfi_rs1_rdata_o,
@@ -396,7 +394,6 @@ module execute_stage #(parameter VADDR = 39) (
     always @(posedge clk_i) begin
         if (~stall_i) begin
             rvfi_insn_o       <= rvfi_insn_i;
-            rvfi_intr_o       <= rvfi_intr_i;
             rvfi_rs1_addr_o   <= rs1_used_i ? rs1_idx_i : '0;
             rvfi_rs2_addr_o   <= rs2_used_i ? rs2_idx_i : '0;
             rvfi_rs1_rdata_o  <= rs1_used_i ? rs1_data  : '0;

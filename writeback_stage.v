@@ -45,7 +45,6 @@ module writeback_stage (
     ,
     input [  32 - 1 : 0]         rvfi_insn_i,
     input                        rvfi_trap_i,
-    input                        rvfi_intr_i,
     input [   5 - 1 : 0]         rvfi_rs1_addr_i,
     input [   5 - 1 : 0]         rvfi_rs2_addr_i,
     input [`XLEN - 1 : 0]        rvfi_rs1_rdata_i,
@@ -171,18 +170,6 @@ module writeback_stage (
         if (rvfi_valid)
             rvfi_order <= rvfi_order + 64'd1;
     end
-
-    // Once the rvfi_intr_i is set in a valid state, preserve this bit until the next 
-    // instruction retires. This bit tracks the first instruction RETIRED after a trap.
-    // reg rvfi_intr_still_trying;
-    // always @(posedge clk_i) begin
-    //     if (~rst_ni)
-    //         rvfi_intr_still_trying <= 1'b0;
-    //     else if (rvfi_intr_i && rvfi_valid && !inst_retired_ao)
-    //         rvfi_intr_still_trying <= 1'b1;
-    //     else if (inst_retired_ao)
-    //         rvfi_intr_still_trying <= 1'b0;
-    // end
 
     reg rvfi_intr_predicted;
     always @(posedge clk_i) begin

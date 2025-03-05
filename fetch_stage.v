@@ -45,11 +45,6 @@ module fetch_stage #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     output reg              valid_o,
     output reg [VADDR-1:0]  pc_o,
     output reg [VADDR-1:0]  next_pc_o
-
-`ifdef LUCID64_RVFI
-    ,
-    output reg                   rvfi_intr_o
-`endif
 );
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,41 +199,6 @@ module fetch_stage #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         pc_o      <= (stall_i ? pc_o      : pc_out);
         next_pc_o <= (stall_i ? next_pc_o : pc_out + 4);
     end
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                                  RISC-V Formal Interface                                  //
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-`ifdef LUCID64_RVFI
-
-    logic rvfi_intr_pre, rvfi_intr_saved, rvfi_intr_current;
-    
-    assign rvfi_intr_current = csr_branch_i || trap_ret_i;
-
-    always @(posedge clk_i) begin
-        // This does not restore after a stall properly
-        // if (~stall_i)
-            // rvfi_intr_pre <= stall_delayed ? rvfi_intr_saved : rvfi_intr_current;
-            rvfi_intr_pre <= rvfi_intr_saved || rvfi_intr_current;
-    end
-
-    always @(posedge clk_i) begin
-        if (~rst_ni)
-            rvfi_intr_saved <= '0;
-        else if (stall_i && ~rvfi_intr_saved)
-            rvfi_intr_saved <= rvfi_intr_current;
-        else if (stall_delayed)
-            rvfi_intr_saved <= '0;
-    end
-
-    always @(posedge clk_i) begin
-        if (~stall_i) begin
-            rvfi_intr_o <= rvfi_intr_pre && rst_ni;
-        end
-    end
-
-`endif
 
 
 endmodule

@@ -64,7 +64,6 @@ module memory_stage #(parameter VADDR = 39) (
     ,
     input [  32 - 1 : 0]         rvfi_insn_i,
     input                        rvfi_trap_i,
-    input                        rvfi_intr_i,
     input [   5 - 1 : 0]         rvfi_rs1_addr_i,
     input [   5 - 1 : 0]         rvfi_rs2_addr_i,
     input [`XLEN - 1 : 0]        rvfi_rs1_rdata_i,
@@ -74,7 +73,6 @@ module memory_stage #(parameter VADDR = 39) (
 
     output reg [  32 - 1 : 0]    rvfi_insn_o,
     output reg                   rvfi_trap_o,
-    output reg                   rvfi_intr_o,
     output reg [   5 - 1 : 0]    rvfi_rs1_addr_o,
     output reg [   5 - 1 : 0]    rvfi_rs2_addr_o,
     output reg [`XLEN - 1 : 0]   rvfi_rs1_rdata_o,
@@ -248,7 +246,6 @@ module memory_stage #(parameter VADDR = 39) (
     always @(posedge clk_i) begin
         if (~stall_i) begin
             rvfi_insn_o       <= rvfi_insn_i;
-            rvfi_intr_o       <= rvfi_intr_i;
             rvfi_rs1_addr_o   <= rvfi_rs1_addr_i;
             rvfi_rs2_addr_o   <= rvfi_rs2_addr_i;
             rvfi_rs1_rdata_o  <= rvfi_rs1_rdata_i;

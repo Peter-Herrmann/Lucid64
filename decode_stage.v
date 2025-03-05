@@ -89,11 +89,8 @@ module decode_stage #(parameter VADDR = 39) (
 
 `ifdef LUCID64_RVFI
     ,
-    input                        rvfi_intr_i,
-
     output reg [  32 - 1 : 0]    rvfi_insn_o,
     output reg                   rvfi_trap_o,
-    output reg                   rvfi_intr_o,
     output reg [`XLEN - 1 : 0]   rvfi_pc_rdata_o,
     output reg [`XLEN - 1 : 0]   rvfi_pc_wdata_o
 `endif
@@ -516,7 +513,6 @@ module decode_stage #(parameter VADDR = 39) (
     always @(posedge clk_i) begin
         if (~stall_i) begin
             rvfi_insn_o       <= inst_i[1:0] == 2'b11 ? inst_i : {16'b0, inst_i[15:0]};
-            rvfi_intr_o       <= rvfi_intr_i && rst_ni;
             rvfi_pc_rdata_o   <= 64'(pc_i);
             rvfi_pc_wdata_o   <= 64'(next_pc);
         end
