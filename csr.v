@@ -16,12 +16,15 @@ module csr #(parameter VADDR = 39) (
     input                   clk_i,
     input                   rst_ni,
 
-    input                   wr_en_i,
     input                   rd_en_i,
     input      [11:0]       rd_addr_i,
+    output reg [`XLEN-1:0]  rdata_o,
+    output                  csr_rd_ex_ao,
+
+    input                   wr_en_i,
     input      [11:0]       wr_addr_i,
     input      [`XLEN-1:0]  wdata_i,
-    output reg [`XLEN-1:0]  rdata_o,
+    output                  csr_wr_ex_ao,
 
     input                   unalign_load_ex_i,
     input                   unalign_store_ex_i,
@@ -63,7 +66,7 @@ module csr #(parameter VADDR = 39) (
         wr_minstret,  wr_mcounteren;
     // Interrupt Signals
     wire M_inter_en, M_ext_inter, M_timer_inter, M_soft_inter, M_interrupt_a;
-    wire M_intr_taken_a, M_exception_a, illegal_inst_ex;
+    wire M_intr_taken_a, M_exception_a;
     reg  M_intr_taken_r;   
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,9 +189,9 @@ module csr #(parameter VADDR = 39) (
             mip_MTIP <= wdata_i[7];
             mip_MSIP <= wdata_i[3];
         end else begin
-            mip_MEIP <= mie_MEIE | m_ext_inter_i;
-            mip_MTIP <= mie_MTIE | m_timer_inter_i;
-            mip_MSIP <= mie_MSIE | m_soft_inter_i;
+            mip_MEIP <= mie_MEIE & m_ext_inter_i;
+            mip_MTIP <= mie_MTIE & m_timer_inter_i;
+            mip_MSIP <= mie_MSIE & m_soft_inter_i;
         end
     end
 
@@ -282,7 +285,7 @@ module csr #(parameter VADDR = 39) (
             mcause_code  <= `MCAUSE_BREAKPOINT;
         else if (ecall_ex_i)
             mcause_code  <= `MCAUSE_ECALL_FROM_M_MODE;
-        else if (illegal_inst_ex)
+        else if (illegal_inst_ex_i)
             mcause_code  <= `MCAUSE_ILLEGAL_INST;
         else if (unalign_load_ex_i)
             mcause_code  <= `MCAUSE_LOAD_ADDR_MISALIGNED;
@@ -407,56 +410,61 @@ module csr #(parameter VADDR = 39) (
     //                                                                                           //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    reg illegal_m_rd, illegal_sv_rd, illegal_hv_rd, illegal_u_rd, illegal_csr_rd;
-    
-    always @(posedge clk_i) begin
+    reg [`XLEN-1:0] rdata_next;
+    reg             illegal_m_rd, illegal_sv_rd, illegal_hv_rd, illegal_u_rd;
+    reg             illegal_csr_rd;
+    // TODO: illegal read detection must be done asyncronously and fed back to the stage that
+    //       requests it.
+
+    always @(*) begin
         if (~rst_ni) begin
-            illegal_csr_rd <= 'b0;
-            rdata_o        <= 'b0;
-            illegal_m_rd   <= 'b0;
-            illegal_sv_rd  <= 'b0;
-            illegal_u_rd   <= 'b0;
+            rdata_next     = '0;
+            illegal_m_rd   = '0;
+            illegal_hv_rd  = '0;
+            illegal_sv_rd  = '0;
+            illegal_u_rd   = '0;
         end else begin
-            illegal_m_rd   <= 'b0;
-            illegal_sv_rd  <= 'b0;
-            illegal_u_rd   <= 'b0;
+            illegal_m_rd   = '0;
+            illegal_sv_rd  = '0;
+            illegal_u_rd   = '0;
+            illegal_hv_rd  = '0;
 
             if (rd_en_i) begin
                 case (rd_addr_i[9:8]) // CSR privilege Modes
 
                     `MACHINE_MODE: begin
                         if (privilege_mode != `MACHINE_MODE) begin
-                            rdata_o                      <= {52'b0, rd_addr_i};
-                            illegal_m_rd                 <= 'b1;
+                            rdata_next                      = {52'b0, rd_addr_i};
+                            illegal_m_rd                    = 'b1;
                         end else case (rd_addr_i)
                             // Machine Information Registers (Machine Read-Only)
-                            `CSR_MVENDORID     : rdata_o <= `VENDOR_ID_VAL;
-                            `CSR_MARCHID       : rdata_o <= `MARCH_ID_VAL;
-                            `CSR_MIMPID        : rdata_o <= `IMP_ID_VAL;
-                            `CSR_MHARTID       : rdata_o <= `HART_ID_VAL;
-                            `CSR_MCONFIGPTR    : rdata_o <= `CONFIG_PTR_VAL;
+                            `CSR_MVENDORID     : rdata_next = `VENDOR_ID_VAL;
+                            `CSR_MARCHID       : rdata_next = `MARCH_ID_VAL;
+                            `CSR_MIMPID        : rdata_next = `IMP_ID_VAL;
+                            `CSR_MHARTID       : rdata_next = `HART_ID_VAL;
+                            `CSR_MCONFIGPTR    : rdata_next = `CONFIG_PTR_VAL;
                             // Machine Trap Setup (Machine Read-Write)
-                            `CSR_MSTATUS       : rdata_o <= mstatus_rdata;
-                            `CSR_MISA          : rdata_o <= misa_rdata;
-                            `CSR_MIE           : rdata_o <= mie_rdata;
-                            `CSR_MTVEC         : rdata_o <= mtvec_rdata;
+                            `CSR_MSTATUS       : rdata_next = mstatus_rdata;
+                            `CSR_MISA          : rdata_next = misa_rdata;
+                            `CSR_MIE           : rdata_next = mie_rdata;
+                            `CSR_MTVEC         : rdata_next = mtvec_rdata;
                             // Machine Counter Setup (Machine Read-Write)
-                            `CSR_MCOUNTEREN    : rdata_o <= mcounteren_rdata;
-                            `CSR_MCOUNTINHIBIT : rdata_o <= mcountinhibit_rdata;
+                            `CSR_MCOUNTEREN    : rdata_next = mcounteren_rdata;
+                            `CSR_MCOUNTINHIBIT : rdata_next = mcountinhibit_rdata;
                             // Machine Trap Handline (Machine Read-Write)
-                            `CSR_MSCRATCH      : rdata_o <= mscratch;
-                            `CSR_MEPC          : rdata_o <= mepc_rdata;
-                            `CSR_MCAUSE        : rdata_o <= mcause_rdata;
-                            `CSR_MTVAL         : rdata_o <= mtval;
-                            `CSR_MIP           : rdata_o <= mip_rdata;
-                            `CSR_MTVAL2        : rdata_o <= mtval2;
+                            `CSR_MSCRATCH      : rdata_next = mscratch;
+                            `CSR_MEPC          : rdata_next = mepc_rdata;
+                            `CSR_MCAUSE        : rdata_next = mcause_rdata;
+                            `CSR_MTVAL         : rdata_next = mtval;
+                            `CSR_MIP           : rdata_next = mip_rdata;
+                            `CSR_MTVAL2        : rdata_next = mtval2;
                             // MHPM Counters
-                            `CSR_MCYCLE        : rdata_o <= mcycle;
-                            `CSR_MINSTRET      : rdata_o <= minstret;
+                            `CSR_MCYCLE        : rdata_next = mcycle;
+                            `CSR_MINSTRET      : rdata_next = minstret;
 
                             default: begin
-                                rdata_o                  <= {52'b0, rd_addr_i};
-                                illegal_m_rd             <= 'b1;
+                                rdata_next               = {52'b0, rd_addr_i};
+                                illegal_m_rd             = 'b1;
                             end
                         endcase
                     end // Machine Mode
@@ -464,13 +472,13 @@ module csr #(parameter VADDR = 39) (
 
                     `SUPERVISOR_MODE: begin
                         if (privilege_mode == `USER_MODE) begin
-                            rdata_o                      <= {52'b0, rd_addr_i};
-                            illegal_sv_rd                <= 'b1;
+                            rdata_next                   = {52'b0, rd_addr_i};
+                            illegal_sv_rd                = 'b1;
                         end else case (rd_addr_i)
 
                             default: begin
-                                rdata_o                  <= {52'b0, rd_addr_i};
-                                illegal_sv_rd            <= 'b1;
+                                rdata_next               = {52'b0, rd_addr_i};
+                                illegal_sv_rd            = 'b1;
                             end
                         
                         endcase
@@ -480,38 +488,44 @@ module csr #(parameter VADDR = 39) (
                     `USER_MODE: begin
                         case (rd_addr_i)
                             `CSR_CYCLE: begin
-                                illegal_u_rd <= ~cycle_enabled;
-                                rdata_o      <= cycle_enabled ? mcycle : 'b0;
+                                illegal_u_rd = ~cycle_enabled;
+                                rdata_next   = cycle_enabled ? mcycle : '0;
                             end
 
                             `CSR_TIME: begin
-                                illegal_u_rd <= ~time_enabled;
-                                rdata_o      <= time_enabled ? time_i : 'b0;
+                                illegal_u_rd = ~time_enabled;
+                                rdata_next   = time_enabled ? time_i : '0;
                             end
 
                             `CSR_INSTRET: begin
-                                illegal_u_rd <= ~instret_enabled;
-                                rdata_o      <= instret_enabled ? minstret : 'b0;
+                                illegal_u_rd = ~instret_enabled;
+                                rdata_next   = instret_enabled ? minstret : '0;
                             end
 
                             default: begin
-                                rdata_o                  <= {52'b0, rd_addr_i};
-                                illegal_u_rd             <= 'b1;
+                                rdata_next               = {52'b0, rd_addr_i};
+                                illegal_u_rd             = 'b1;
                             end
                         endcase
                     end // User Mode
 
 
                     default: begin
-                        rdata_o       <= {52'b0, rd_addr_i};
-                        illegal_hv_rd <= 'b1;
+                        rdata_next    = {52'b0, rd_addr_i};
+                        illegal_hv_rd = '1;
                     end
 
                 endcase // case (rd_addr_i[9:8])
             end // rd_en_i
 
-            illegal_csr_rd <= illegal_m_rd || illegal_sv_rd || illegal_u_rd || illegal_hv_rd;
+            illegal_csr_rd = illegal_m_rd || illegal_sv_rd || illegal_u_rd || illegal_hv_rd;
+
         end
+    end
+
+    always @(posedge clk_i) begin
+        if (rd_en_i)
+            rdata_o <= rdata_next;
     end
 
 
@@ -623,9 +637,9 @@ module csr #(parameter VADDR = 39) (
     assign M_soft_inter  = mip_MSIP && mie_MSIE && M_inter_en;
     assign M_interrupt_a = M_ext_inter || M_timer_inter || M_soft_inter;
 
-    assign illegal_inst_ex = illegal_inst_ex_i || illegal_csr_rd || illegal_csr_wr;
-
-    assign M_exception_a = (unalign_load_ex_i  || illegal_inst_ex || ecall_ex_i || 
+    assign csr_wr_ex_ao   = illegal_csr_wr;
+    assign csr_rd_ex_ao   = illegal_csr_rd; 
+    assign M_exception_a = (unalign_load_ex_i  || illegal_inst_ex_i || ecall_ex_i || 
                           unalign_store_ex_i || ebreak_ex_i );
 
     assign M_intr_taken_a = M_exception_a || M_interrupt_a;

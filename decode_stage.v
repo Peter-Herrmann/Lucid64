@@ -39,6 +39,7 @@ module decode_stage #(parameter VADDR = 39) (
     //=============== CSR Read Interface ================//
     output wire [11:0]     csr_addr_ao,
     output wire            csr_rd_en_ao,
+    input                  csr_rd_ex_i,
     // CSR Load Use Hazard Inputs
     input       [11:0]     EXE_csr_addr_i,
     input                  EXE_csr_wr_en_i,
@@ -405,7 +406,7 @@ module decode_stage #(parameter VADDR = 39) (
     // CSR read/write controls
     wire   csr_wr_en           = sys_csr && ( csr_op_rw || csr_immed != 'b0) && valid;
     assign csr_rd_en           = sys_csr && (!csr_op_rw || rd_idx    != 'b0);
-    assign csr_rd_en_ao        = csr_rd_en && valid;
+    assign csr_rd_en_ao        = csr_rd_en && valid && ~stall_i;
     assign csr_addr_ao         = csr_addr;
     assign csr_load_use_haz_ao = (csr_addr == EXE_csr_addr_i) && EXE_csr_wr_en_i && csr_rd_en;
     
@@ -434,6 +435,7 @@ module decode_stage #(parameter VADDR = 39) (
     wire illegal_inst_ex = ~legal_ref | 
                             (compressed  && illegal_inst_compr)   | 
                             (~compressed && illegal_inst_uncompr) | 
+                            csr_rd_ex_i |
                             !(|inst_i);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -507,7 +509,7 @@ module decode_stage #(parameter VADDR = 39) (
             rvfi_trap_o       <= '0;
         else if (squash_i || bubble_i)
             rvfi_trap_o       <= '0;
-        else
+        else if (~stall_i)
             rvfi_trap_o       <= illegal_inst_ex && valid;
     end
 

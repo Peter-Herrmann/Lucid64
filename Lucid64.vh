@@ -11,7 +11,7 @@
 `define LUCID64_VH
 
 `define TODO_DUMMY '0 // Dummy value for development - remove before release
-// `define LUCID64_RVFI
+`define LUCID64_RVFI
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //                                     Architectural Constants                                   //

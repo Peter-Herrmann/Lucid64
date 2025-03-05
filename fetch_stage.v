@@ -212,12 +212,24 @@ module fetch_stage #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
 
 `ifdef LUCID64_RVFI
 
-    logic rvfi_intr_pre;
+    logic rvfi_intr_pre, rvfi_intr_saved, rvfi_intr_current;
     
+    assign rvfi_intr_current = csr_branch_i || trap_ret_i;
+
     always @(posedge clk_i) begin
         // This does not restore after a stall properly
-        if (~stall_i)
-            rvfi_intr_pre <= csr_branch_i || trap_ret_i;
+        // if (~stall_i)
+            // rvfi_intr_pre <= stall_delayed ? rvfi_intr_saved : rvfi_intr_current;
+            rvfi_intr_pre <= rvfi_intr_saved || rvfi_intr_current;
+    end
+
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            rvfi_intr_saved <= '0;
+        else if (stall_i && ~rvfi_intr_saved)
+            rvfi_intr_saved <= rvfi_intr_current;
+        else if (stall_delayed)
+            rvfi_intr_saved <= '0;
     end
 
     always @(posedge clk_i) begin

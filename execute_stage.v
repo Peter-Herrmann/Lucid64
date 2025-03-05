@@ -71,9 +71,10 @@ module execute_stage #(parameter VADDR = 39) (
 
     //================== CSR Interface ==================//
     input      [`XLEN-1:0]  csr_rdata_i,
-    output reg [`XLEN-1:0]  csr_wdata_ao,
-    output wire [11:0]      csr_wr_addr_ao,
     output wire             csr_wr_en_ao,
+    output wire [11:0]      csr_wr_addr_ao,
+    output reg [`XLEN-1:0]  csr_wdata_ao,
+    input                   csr_wr_ex_i,
 
     //===============Traps and Exceptions================//
     output wire             ecall_ex_ao,
@@ -225,7 +226,7 @@ module execute_stage #(parameter VADDR = 39) (
         endcase
     end
 
-    assign csr_wr_en_ao   = csr_wr_en_i;
+    assign csr_wr_en_ao   = csr_wr_en_i && valid && ~stall_i;
     assign csr_wr_addr_ao = csr_wr_addr_i;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -308,12 +309,12 @@ module execute_stage #(parameter VADDR = 39) (
 
     assign ecall_ex_ao        = valid && ecall_ex_i;
     assign ebreak_ex_ao       = valid && ebreak_ex_i;
-    assign illegal_inst_ex_ao = valid && illegal_inst_ex_i;
+    assign illegal_inst_ex_ao = valid && illegal_inst_ex_i || csr_wr_ex_i;
     assign mret_ao            = valid && mret_i;
     assign wait_for_int_ao    = valid && wait_for_int_i;
     assign fencei_ao          = valid && fencei_i;
 
-    assign exception          = ecall_ex_i || ebreak_ex_i || illegal_inst_ex_i;
+    assign exception          = ecall_ex_i || ebreak_ex_i || illegal_inst_ex_i || csr_wr_ex_i;
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -362,8 +363,34 @@ module execute_stage #(parameter VADDR = 39) (
             rvfi_trap_o       <= '0;
         else if (squash_i || bubble_i)
             rvfi_trap_o       <= '0;
-        else
-            rvfi_trap_o       <= rvfi_trap_i | (exception && valid);
+        else if (~stall_i)
+            rvfi_trap_o       <= rvfi_trap_i | (exception && valid) | csr_wr_ex_i;
+        else if (csr_wr_ex_i)
+            rvfi_trap_o       <= csr_wr_ex_i;
+            // csr_wr_ex_i is included here because an invalid csr op will invalidate this 
+            // instruction by the time csr_wr_ex_i reaches execute. If it reaches execute,
+            // then the trap has been taken in fetch and this instruciton is the trap instruction
+    end
+
+    reg stall_delayed;
+    reg [63:0] pc_wdata_saved;
+
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            stall_delayed <= 1'b0;
+        else 
+            stall_delayed <= stall_i;
+    end
+
+    always @(posedge clk_i) begin
+        if (~rst_ni) begin
+            pc_wdata_saved <= 'b0;
+        end else if (~stall_delayed) begin
+            pc_wdata_saved <= branch_o ? 64'(target_addr_o) & `IALIGN_MASK :
+                                         64'(rvfi_pc_wdata_i);
+        end else if (branch_o) begin
+            pc_wdata_saved <= 64'(target_addr_o);
+        end
     end
 
     always @(posedge clk_i) begin
@@ -375,8 +402,10 @@ module execute_stage #(parameter VADDR = 39) (
             rvfi_rs1_rdata_o  <= rs1_used_i ? rs1_data  : '0;
             rvfi_rs2_rdata_o  <= rs2_used_i ? rs2_data  : '0;
             rvfi_pc_rdata_o   <= rvfi_pc_rdata_i;
-            rvfi_pc_wdata_o   <= branch_o ? 64'(target_addr_o) & `IALIGN_MASK : 
-                                            64'(rvfi_pc_wdata_i);
+            // This needs to match the branch target stall behavior in fetch
+            rvfi_pc_wdata_o   <= branch_o      ? 64'(target_addr_o) & `IALIGN_MASK : 
+                                 stall_delayed ? 64'(pc_wdata_saved)               :
+                                                 64'(rvfi_pc_wdata_i);
         end
     end
 

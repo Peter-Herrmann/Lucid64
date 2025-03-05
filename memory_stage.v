@@ -174,8 +174,8 @@ module memory_stage #(parameter VADDR = 39) (
         .be_i     (byte_strobe),
         .addr_i   (dmem_word_addr),
         .wdata_i  (dmem_wdata_a),
-        .rd_i     (mem_read),
-        .wr_i     (mem_write),
+        .rd_i     (mem_read  && ~illegal_addr),
+        .wr_i     (mem_write && ~illegal_addr),
 
         .stall_ao (dmem_stall_ao),
 
@@ -229,7 +229,8 @@ module memory_stage #(parameter VADDR = 39) (
     // RVFI Does not have strobes based on aligned addresses. Instead, the full memory address is
     // used and the MEM_WD least significant bits of the address are set in the strobe.
     wire [7:0] rvfi_mem_mask;
-    assign     rvfi_mem_mask = (mem_width_1h_i == `MEM_WIDTH_1H_BYTE)   ? 8'b0000_0001 :
+    assign     rvfi_mem_mask = ( (~valid) || (exception) )              ? '0           :
+                               (mem_width_1h_i == `MEM_WIDTH_1H_BYTE)   ? 8'b0000_0001 :
                                (mem_width_1h_i == `MEM_WIDTH_1H_HALF)   ? 8'b0000_0011 :
                                (mem_width_1h_i == `MEM_WIDTH_1H_WORD)   ? 8'b0000_1111 :
                                (mem_width_1h_i == `MEM_WIDTH_1H_DOUBLE) ? 8'b1111_1111 :
@@ -240,7 +241,7 @@ module memory_stage #(parameter VADDR = 39) (
             rvfi_trap_o       <= '0;
         else if (squash_i || bubble_i)
             rvfi_trap_o       <= '0;
-        else
+        else if (~stall_i)
             rvfi_trap_o       <= rvfi_trap_i | (exception && valid);
     end
 

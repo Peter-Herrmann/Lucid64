@@ -80,7 +80,8 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire load_use_haz, csr_load_use_haz, imem_stall, dmem_stall, alu_stall, fencei;
 
     // Exception signals
-    wire illegal_inst_ex, ecall_ex, ebreak_ex, unalign_load_ex, unalign_store_ex;
+    wire illegal_inst_ex, ecall_ex, ebreak_ex, unalign_load_ex, unalign_store_ex, 
+         csr_wr_ex, csr_rd_ex;
 
     // Interrupt signals
     wire [VADDR-1:0] csr_branch_addr;
@@ -210,6 +211,7 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         //=============== CSR Read Interface ================//
         .csr_addr_ao        (csr_rd_addr),
         .csr_rd_en_ao       (csr_rd_en),
+        .csr_rd_ex_i        (csr_rd_ex),
         // CSR Load Use Hazard Inputs
         .EXE_csr_addr_i     (csr_wr_addr),
         .EXE_csr_wr_en_i    (EXE_csr_wr_en),
@@ -345,6 +347,7 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .MEM_rd_data_i      (rd_data),
 
         //================== CSR Interface ==================//
+        .csr_wr_ex_i        (csr_wr_ex),
         .csr_rdata_i        (EXE_csr_rdata),
         .csr_wdata_ao       (EXE_csr_wdata),
         .csr_wr_addr_ao     (csr_wr_addr),
@@ -678,10 +681,12 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .rd_en_i            (csr_rd_en),
         .rd_addr_i          (csr_rd_addr),
         .rdata_o            (EXE_csr_rdata),
+        .csr_rd_ex_ao       (csr_rd_ex),
 
         .wr_en_i            (EXE_csr_wr_en),
         .wr_addr_i          (csr_wr_addr),
         .wdata_i            (EXE_csr_wdata),
+        .csr_wr_ex_ao       (csr_wr_ex),
 
         .unalign_load_ex_i  (unalign_load_ex),
         .unalign_store_ex_i (unalign_store_ex),

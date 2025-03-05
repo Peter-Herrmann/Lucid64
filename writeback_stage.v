@@ -163,14 +163,35 @@ module writeback_stage (
 
 `ifdef LUCID64_RVFI
 
+    wire   rvfi_valid;
+    assign rvfi_valid = (inst_retired_ao | rvfi_trap_i) && rst_ni && ~stall_i;
+
     reg [63:0] rvfi_order = '0;
-    wire rvfi_valid;
-
-    assign rvfi_valid = (inst_retired_ao | rvfi_trap_i) && rst_ni;
-
     always @(posedge clk_i) begin
         if (rvfi_valid)
             rvfi_order <= rvfi_order + 64'd1;
+    end
+
+    // Once the rvfi_intr_i is set in a valid state, preserve this bit until the next 
+    // instruction retires. This bit tracks the first instruction RETIRED after a trap.
+    // reg rvfi_intr_still_trying;
+    // always @(posedge clk_i) begin
+    //     if (~rst_ni)
+    //         rvfi_intr_still_trying <= 1'b0;
+    //     else if (rvfi_intr_i && rvfi_valid && !inst_retired_ao)
+    //         rvfi_intr_still_trying <= 1'b1;
+    //     else if (inst_retired_ao)
+    //         rvfi_intr_still_trying <= 1'b0;
+    // end
+
+    reg rvfi_intr_predicted;
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            rvfi_intr_predicted <= 1'b0;
+        else if (rvfi_trap_i && ~stall_i)
+            rvfi_intr_predicted <= 1'b1;
+        else if (inst_retired_ao)
+            rvfi_intr_predicted <= 1'b0;
     end
 
     always @(*) begin
@@ -179,13 +200,14 @@ module writeback_stage (
         rvfi_insn_o       = rvfi_insn_i;
         rvfi_trap_o       = rvfi_trap_i;
         rvfi_halt_o       = 1'b0;
-        rvfi_intr_o       = rvfi_intr_i;
+        // rvfi_intr_o       = rvfi_intr_i || rvfi_intr_still_trying;
+        rvfi_intr_o       = rvfi_intr_predicted;
         rvfi_mode_o       = 2'd3; // Machine mode
         rvfi_ixl_o        = 2'd2; // 64 bit
-        rvfi_rs1_addr_o   = rvfi_trap_i ? '0 : rvfi_rs1_addr_i;
-        rvfi_rs2_addr_o   = rvfi_trap_i ? '0 : rvfi_rs2_addr_i;
-        rvfi_rs1_rdata_o  = rvfi_trap_i ? '0 : rvfi_rs1_rdata_i;
-        rvfi_rs2_rdata_o  = rvfi_trap_i ? '0 : rvfi_rs2_rdata_i;
+        rvfi_rs1_addr_o   = rvfi_rs1_addr_i;
+        rvfi_rs2_addr_o   = rvfi_rs2_addr_i;
+        rvfi_rs1_rdata_o  = rvfi_rs1_rdata_i;
+        rvfi_rs2_rdata_o  = rvfi_rs2_rdata_i;
         rvfi_rd_addr_o    = rd_wr_en_ao ? rd_idx_ao  : '0;
         rvfi_rd_wdata_o   = rd_wr_en_ao ? rd_data_ao : '0;
         rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
