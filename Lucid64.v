@@ -327,7 +327,7 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
         .fencei_i           (DCD_fencei),
 
         //============= Forwarded Register Data =============//
-        .MEM_rd_wr_en_i     (rd_wr_en),
+        .MEM_rd_wr_en_i     (MEM_rd_wr_en),
         .MEM_valid_i        (WB_valid),
         .MEM_rd_idx_i       (rd_idx),
         .MEM_rd_data_i      (rd_data),
