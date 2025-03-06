@@ -307,11 +307,11 @@ module decode_stage #(parameter VADDR = 39) (
     //                                Illegal Instruction Detector                               //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    // wire illegal_inst_ex = compressed ? illegal_inst_compr : 'b0; // TODO: make complete illegal instruction logic
     wire illegal_inst_ex = (compressed  && illegal_inst_compr)   ||
                            (~compressed && illegal_inst_uncompr) ||
                             csr_rd_ex_i                          ||
                             !(|inst_i[15:0]);
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //        ____  _            _ _              ____            _     _                        //
