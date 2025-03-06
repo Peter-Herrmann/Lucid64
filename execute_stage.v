@@ -370,27 +370,6 @@ module execute_stage #(parameter VADDR = 39) (
             // then the trap has been taken in fetch and this instruciton is the trap instruction
     end
 
-    (* keep *) reg stall_delayed;
-    (* keep *) reg [63:0] pc_wdata_saved;
-
-    always @(posedge clk_i) begin
-        if (~rst_ni)
-            stall_delayed <= 1'b0;
-        else 
-            stall_delayed <= stall_i;
-    end
-
-    always @(posedge clk_i) begin
-        if (~rst_ni) begin
-            pc_wdata_saved <= 'b0;
-        end else if (~stall_delayed) begin
-            pc_wdata_saved <= branch_o ? 64'(target_addr_o) & `IALIGN_MASK :
-                                         64'(rvfi_pc_wdata_i);
-        end else if (branch_o) begin
-            pc_wdata_saved <= 64'(target_addr_o);
-        end
-    end
-
     always @(posedge clk_i) begin
         if (~stall_i) begin
             rvfi_insn_o       <= rvfi_insn_i;
@@ -400,7 +379,6 @@ module execute_stage #(parameter VADDR = 39) (
             rvfi_rs2_rdata_o  <= rs2_used_i ? rs2_data  : '0;
             rvfi_pc_rdata_o   <= rvfi_pc_rdata_i;
             rvfi_pc_wdata_o   <= branch_o      ? 64'(target_addr_o) & `IALIGN_MASK : 
-                                //  stall_delayed ? 64'(pc_wdata_saved)               :
                                                  64'(rvfi_pc_wdata_i);
         end
     end
