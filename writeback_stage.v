@@ -202,7 +202,7 @@ module writeback_stage (
         rvfi_mem_addr_o   = rvfi_mem_addr_i;
         rvfi_mem_rmask_o  = rvfi_mem_rmask_i;
         rvfi_mem_wmask_o  = rvfi_mem_wmask_i;
-        rvfi_mem_rdata_o  = load_data_sliced; // Should this be raw word?
+        rvfi_mem_rdata_o  = dmem_rdata_i;
         rvfi_mem_wdata_o  = rvfi_mem_wdata_i;
     end
 

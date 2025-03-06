@@ -224,15 +224,6 @@ module memory_stage #(parameter VADDR = 39) (
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
 `ifdef LUCID64_RVFI
-    // RVFI Does not have strobes based on aligned addresses. Instead, the full memory address is
-    // used and the MEM_WD least significant bits of the address are set in the strobe.
-    wire [7:0] rvfi_mem_mask;
-    assign     rvfi_mem_mask = ( (~valid) || (exception) )              ? '0           :
-                               (mem_width_1h_i == `MEM_WIDTH_1H_BYTE)   ? 8'b0000_0001 :
-                               (mem_width_1h_i == `MEM_WIDTH_1H_HALF)   ? 8'b0000_0011 :
-                               (mem_width_1h_i == `MEM_WIDTH_1H_WORD)   ? 8'b0000_1111 :
-                               (mem_width_1h_i == `MEM_WIDTH_1H_DOUBLE) ? 8'b1111_1111 :
-                               8'b0;
 
     always @(posedge clk_i) begin
         if (~rst_ni)
@@ -252,9 +243,9 @@ module memory_stage #(parameter VADDR = 39) (
             rvfi_rs2_rdata_o  <= rvfi_rs2_rdata_i;
             rvfi_pc_rdata_o   <= rvfi_pc_rdata_i;
             rvfi_pc_wdata_o   <= rvfi_pc_wdata_i;
-            rvfi_mem_addr_o   <= 64'(dmem_full_addr_i);
-            rvfi_mem_rmask_o  <= dmem_we_ao ? '0            : rvfi_mem_mask;
-            rvfi_mem_wmask_o  <= dmem_we_ao ? rvfi_mem_mask : '0;
+            rvfi_mem_addr_o   <= 64'(dmem_word_addr);
+            rvfi_mem_rmask_o  <= dmem_we_ao ? '0            : byte_strobe;
+            rvfi_mem_wmask_o  <= dmem_we_ao ? byte_strobe : '0;
             rvfi_mem_wdata_o  <= dmem_wdata_ao;
         end
     end
