@@ -10,7 +10,8 @@
 `ifndef LUCID64_VH
 `define LUCID64_VH
 
-`define TODO_DUMMY 'b0 // Dummy value for development - remove before release
+`define TODO_DUMMY '0 // Dummy value for development - remove before release
+// `define LUCID64_RVFI
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //                                     Architectural Constants                                   //
@@ -217,7 +218,8 @@
 `define ALU_OP_REMW         6'b0_1_110_1
 `define ALU_OP_REMUW        6'b0_1_111_1
 
-`define FUNC3_ALU_SHIFT     3'b101
+`define FUNC3_ALU_SHIFT_L   3'b001
+`define FUNC3_ALU_SHIFT_R   3'b101
 
 // ALU Operand A
 `define ALU_A_SRC_RS1       3'b000

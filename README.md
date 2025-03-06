@@ -5,7 +5,7 @@ A 64-bit RISC-V core written with plain and simple Verilog. The core is a 5-stag
 
 ## Verification
 
-The verification for this core is in a seperate repository, [Lucid64-Verif](https://github.com/Peter-Herrmann/Lucid64-Verif). The badges above are associated with CI runs from that repository.
+This core has been formally verified with riscv-formal and verified in simulation with RISCOF. The verification for this core is in a seperate repository, [Lucid64-Verif](https://github.com/Peter-Herrmann/Lucid64-Verif). The badges above are associated with CI runs from that repository.
 
 ## Memory Interfaces
 

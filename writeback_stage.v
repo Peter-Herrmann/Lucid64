@@ -40,6 +40,44 @@ module writeback_stage (
 
     output wire                 inst_retired_ao,
     output wire                 valid_ao
+
+`ifdef LUCID64_RVFI
+    ,
+    input [  32 - 1 : 0]         rvfi_insn_i,
+    input                        rvfi_trap_i,
+    input [   5 - 1 : 0]         rvfi_rs1_addr_i,
+    input [   5 - 1 : 0]         rvfi_rs2_addr_i,
+    input [`XLEN - 1 : 0]        rvfi_rs1_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_rs2_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_wdata_i,
+    input [`XLEN   - 1 : 0]      rvfi_mem_addr_i,
+    input [`XLEN/8 - 1 : 0]      rvfi_mem_rmask_i,
+    input [`XLEN/8 - 1 : 0]      rvfi_mem_wmask_i,
+    input [`XLEN   - 1 : 0]      rvfi_mem_wdata_i,
+
+    output reg                   rvfi_valid_o,
+    output reg [  64 - 1 : 0]    rvfi_order_o,
+    output reg [  32 - 1 : 0]    rvfi_insn_o,
+    output reg                   rvfi_trap_o,
+    output reg                   rvfi_halt_o,
+    output reg                   rvfi_intr_o,
+    output reg [2    - 1 : 0]    rvfi_mode_o,
+    output reg [2    - 1 : 0]    rvfi_ixl_o,
+    output reg [   5 - 1 : 0]    rvfi_rs1_addr_o,
+    output reg [   5 - 1 : 0]    rvfi_rs2_addr_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs1_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs2_rdata_o,
+    output reg [   5 - 1 : 0]    rvfi_rd_addr_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rd_wdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_wdata_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_addr_o,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_rmask_o,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_wmask_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_rdata_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_wdata_o
+`endif
 );
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +153,60 @@ module writeback_stage (
     assign rd_wr_en_ao = rd_wr_en_i && valid && ~stall_i;
 
     assign inst_retired_ao = valid && ~stall_i;
-    assign valid_ao        = valid;
+    assign valid_ao        = valid && rst_ni;
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                  RISC-V Formal Interface                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+`ifdef LUCID64_RVFI
+
+    wire   rvfi_valid;
+    assign rvfi_valid = (inst_retired_ao | rvfi_trap_i) && rst_ni && ~stall_i;
+
+    reg [63:0] rvfi_order = '0;
+    always @(posedge clk_i) begin
+        if (rvfi_valid)
+            rvfi_order <= rvfi_order + 64'd1;
+    end
+
+    reg rvfi_intr_predicted;
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            rvfi_intr_predicted <= 1'b0;
+        else if (rvfi_trap_i && ~stall_i)
+            rvfi_intr_predicted <= 1'b1;
+        else if (inst_retired_ao)
+            rvfi_intr_predicted <= 1'b0;
+    end
+
+    always @(*) begin
+        rvfi_valid_o      = rvfi_valid;
+        rvfi_order_o      = rvfi_order;
+        rvfi_insn_o       = rvfi_insn_i;
+        rvfi_trap_o       = rvfi_trap_i;
+        rvfi_halt_o       = 1'b0;
+        // rvfi_intr_o       = rvfi_intr_i || rvfi_intr_still_trying;
+        rvfi_intr_o       = rvfi_intr_predicted;
+        rvfi_mode_o       = 2'd3; // Machine mode
+        rvfi_ixl_o        = 2'd2; // 64 bit
+        rvfi_rs1_addr_o   = rvfi_rs1_addr_i;
+        rvfi_rs2_addr_o   = rvfi_rs2_addr_i;
+        rvfi_rs1_rdata_o  = rvfi_rs1_rdata_i;
+        rvfi_rs2_rdata_o  = rvfi_rs2_rdata_i;
+        rvfi_rd_addr_o    = rd_wr_en_ao ? rd_idx_ao  : '0;
+        rvfi_rd_wdata_o   = rd_wr_en_ao ? rd_data_ao : '0;
+        rvfi_pc_rdata_o   = rvfi_pc_rdata_i;
+        rvfi_pc_wdata_o   = rvfi_pc_wdata_i;
+        rvfi_mem_addr_o   = rvfi_mem_addr_i;
+        rvfi_mem_rmask_o  = rvfi_mem_rmask_i;
+        rvfi_mem_wmask_o  = rvfi_mem_wmask_i;
+        rvfi_mem_rdata_o  = dmem_rdata_i;
+        rvfi_mem_wdata_o  = rvfi_mem_wdata_i;
+    end
+
+`endif
 
 endmodule
 

@@ -39,6 +39,7 @@ module decode_stage #(parameter VADDR = 39) (
     //=============== CSR Read Interface ================//
     output wire [11:0]     csr_addr_ao,
     output wire            csr_rd_en_ao,
+    input                  csr_rd_ex_i,
     // CSR Load Use Hazard Inputs
     input       [11:0]     EXE_csr_addr_i,
     input                  EXE_csr_wr_en_i,
@@ -86,6 +87,14 @@ module decode_stage #(parameter VADDR = 39) (
     output reg             wait_for_int_o,
     output reg             fencei_o
 
+`ifdef LUCID64_RVFI
+    ,
+    output reg [  32 - 1 : 0]    rvfi_insn_o,
+    output reg                   rvfi_trap_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_wdata_o
+`endif
+
     );
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,6 +134,7 @@ module decode_stage #(parameter VADDR = 39) (
     // Flow Control and Exceptions
     wire [5:0]       branch_cond_1h_uncompr;
     wire             branch_uncompr, ebreak_uncompr, ecall_ex, mret, wait_for_int, fencei;
+    wire             illegal_inst_uncompr;
     // CSR Signals
     wire             csr_rd_en, sys_csr;
     wire [`XLEN-1:0] csr_immed;
@@ -164,7 +174,8 @@ module decode_stage #(parameter VADDR = 39) (
         .fencei_ao         (fencei),
         .ecall_ex_ao       (ecall_ex),
         .mret_ao           (mret),
-        .wait_for_int_ao   (wait_for_int) 
+        .wait_for_int_ao   (wait_for_int),
+        .illegal_inst_ao   (illegal_inst_uncompr)
     );
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -271,7 +282,7 @@ module decode_stage #(parameter VADDR = 39) (
     // CSR read/write controls
     wire   csr_wr_en           = sys_csr && ( csr_op_rw || csr_immed != 'b0) && valid;
     assign csr_rd_en           = sys_csr && (!csr_op_rw || rd_idx    != 'b0);
-    assign csr_rd_en_ao        = csr_rd_en && valid;
+    assign csr_rd_en_ao        = csr_rd_en && valid && ~stall_i;
     assign csr_addr_ao         = csr_addr;
     assign csr_load_use_haz_ao = (csr_addr == EXE_csr_addr_i) && EXE_csr_wr_en_i && csr_rd_en;
     
@@ -296,7 +307,10 @@ module decode_stage #(parameter VADDR = 39) (
     //                                Illegal Instruction Detector                               //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire illegal_inst_ex = compressed ? illegal_inst_compr : 'b0; // TODO: make complete illegal instruction logic
+    wire illegal_inst_ex = (compressed  && illegal_inst_compr)   ||
+                           (~compressed && illegal_inst_uncompr) ||
+                            csr_rd_ex_i                          ||
+                            !(|inst_i[15:0]);
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -308,9 +322,15 @@ module decode_stage #(parameter VADDR = 39) (
     //               |_|                                    |___/                                //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            valid_o <= 1'b0;
+        else if (~stall_i)
+            valid_o <= valid;
+    end
+
     always @(posedge clk_i) begin : decode_pipeline_registers
     // On stall, all outputs do not change.
-        valid_o             <= (stall_i) ? valid_o           : valid;
         // Register Source 1 (rs1)
         rs1_idx_o           <= (stall_i) ? rs1_idx_o         : (rs1_used ? rs1_idx : 'b0);
         rs1_used_o          <= (stall_i) ? rs1_used_o        : rs1_used;
@@ -351,6 +371,32 @@ module decode_stage #(parameter VADDR = 39) (
         wait_for_int_o      <= (stall_i) ? wait_for_int_o    : wait_for_int;
         fencei_o            <= (stall_i) ? fencei_o          : fencei;
     end
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                  RISC-V Formal Interface                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+`ifdef LUCID64_RVFI
+
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            rvfi_trap_o       <= '0;
+        else if (squash_i || bubble_i)
+            rvfi_trap_o       <= '0;
+        else if (~stall_i)
+            rvfi_trap_o       <= illegal_inst_ex && valid;
+    end
+
+    always @(posedge clk_i) begin
+        if (~stall_i) begin
+            rvfi_insn_o       <= inst_i[1:0] == 2'b11 ? inst_i : {16'b0, inst_i[15:0]};
+            rvfi_pc_rdata_o   <= 64'(pc_i);
+            rvfi_pc_wdata_o   <= 64'(next_pc);
+        end
+    end
+
+`endif
 
 
 endmodule

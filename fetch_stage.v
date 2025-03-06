@@ -78,7 +78,10 @@ module fetch_stage #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
 
     // Delayed stall for saving (1st stall cycle) and restoring (1st cycle after stall) PC target
     always @(posedge clk_i) begin
-        stall_delayed <= (rst_ni) ? stall_i : 1'b0;
+        if (~rst_ni)
+            stall_delayed <= 1'b0;
+        else 
+            stall_delayed <= stall_i;
     end
 
     always @(posedge clk_i) begin
@@ -185,8 +188,14 @@ module fetch_stage #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     always @(posedge clk_i) begin
-    // On reset, all signals set to 0; on stall, all outputs do not change.
-        valid_o   <= (stall_i ? valid_o   : valid);
+        if (~rst_ni)
+            valid_o <= 1'b0;
+        else if (~stall_i)
+            valid_o <= valid;
+    end
+
+    always @(posedge clk_i) begin
+    // On stall, all outputs do not change.
         pc_o      <= (stall_i ? pc_o      : pc_out);
         next_pc_o <= (stall_i ? next_pc_o : pc_out + 4);
     end

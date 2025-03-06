@@ -44,7 +44,7 @@ module validity_tracker (
     end
 
 
-    assign valid_ao = valid_i && 
+    assign valid_ao = valid_i   &&
                       ~squash_i && ~squashed_during_stall && 
                       ~bubble_i && ~squashed_during_bubble;
 

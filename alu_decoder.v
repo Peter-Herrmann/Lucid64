@@ -26,7 +26,8 @@ module alu_decoder #(parameter VADDR = 39) (
     output reg              alu_uses_rs1_ao,
     output reg              alu_uses_rs2_ao,
 
-    output reg  [5:0]       alu_operation_ao
+    output reg  [5:0]       alu_operation_ao,
+    output reg              legal_alu_op_ao
 );
 
     wire [2:0] func3  = inst_i[14:12];
@@ -92,6 +93,57 @@ module alu_decoder #(parameter VADDR = 39) (
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                      Legality Checkers                                    //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    always @(*) begin
+        // TODO (refactor): Name these magic constants
+
+        if (opcode == `OPCODE_OP) begin
+            if ( (func3 == '0) || (func3 == 3'b101) ) 
+                legal_alu_op_ao = (inst_i[31:25] == '0        ) || 
+                                  (inst_i[31:25] == 7'b0100000);
+            else
+                legal_alu_op_ao = (inst_i[31:25] == '0); // add, slt, etc. with func3 != 3'b101
+
+        end else if (opcode == `OPCODE_OP_W) begin
+            if ( (func3 == '0) || (func3 == 3'b101) )
+                legal_alu_op_ao = (inst_i[31:25] == '0        ) || 
+                                  (inst_i[31:25] == 7'b0100000);
+            else
+                legal_alu_op_ao = (inst_i[31:25] == '0) && (func3 == 3'b001);
+
+        end else if (opcode == `OPCODE_OP_IMM) begin
+            if      (func3 == `FUNC3_ALU_SHIFT_R)
+                legal_alu_op_ao = ( (inst_i[31:26] == '0       ) ||
+                                    (inst_i[31:26] == 6'b010000) );
+
+            else if (func3 == `FUNC3_ALU_SHIFT_L)
+                legal_alu_op_ao = (inst_i[31:26] == '0);
+
+            else
+                legal_alu_op_ao = 1'b1;
+
+        end else if (opcode == `OPCODE_OP_IMM_W) begin
+            if      (func3 == `FUNC3_ALU_SHIFT_R)
+                legal_alu_op_ao = ( (inst_i[31:25] == '0        ) ||
+                                    (inst_i[31:25] == 7'b0100000) );
+
+            else if (func3 == `FUNC3_ALU_SHIFT_L)
+                legal_alu_op_ao = (inst_i[31:25] == '0);
+
+            else
+                legal_alu_op_ao = (func3 == '0);
+
+        end else begin
+            legal_alu_op_ao = ( (opcode == `OPCODE_LUI  ) ||
+                                (opcode == `OPCODE_AUIPC) );
+        end
+
+    end
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                  ALU Operation Decoders                                   //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -110,7 +162,7 @@ module alu_decoder #(parameter VADDR = 39) (
         op_imm = ( opcode == `OPCODE_OP_IMM || opcode == `OPCODE_OP_IMM_W );
         // For immediate values (except shift immediates), func7[5] is imm[10] and must be
         // ignored (cleared) when choosing ALU operation
-        non_shift_imm = op_imm && (func3 != `FUNC3_ALU_SHIFT);
+        non_shift_imm = op_imm && (func3 != `FUNC3_ALU_SHIFT_R);
         alu_op_code = { (func7_5 & ~non_shift_imm), (func7_0 & ~op_imm), func3, opcode[3] };
 
         if      (alu_op_arith)          alu_operation_ao = alu_op_code;

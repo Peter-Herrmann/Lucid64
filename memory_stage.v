@@ -59,6 +59,31 @@ module memory_stage #(parameter VADDR = 39) (
     output reg  [3:0]       mem_width_1h_o,
     output reg              mem_sign_o,
     output reg  [2:0]       byte_addr_o
+
+`ifdef LUCID64_RVFI
+    ,
+    input [  32 - 1 : 0]         rvfi_insn_i,
+    input                        rvfi_trap_i,
+    input [   5 - 1 : 0]         rvfi_rs1_addr_i,
+    input [   5 - 1 : 0]         rvfi_rs2_addr_i,
+    input [`XLEN - 1 : 0]        rvfi_rs1_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_rs2_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_rdata_i,
+    input [`XLEN - 1 : 0]        rvfi_pc_wdata_i,
+
+    output reg [  32 - 1 : 0]    rvfi_insn_o,
+    output reg                   rvfi_trap_o,
+    output reg [   5 - 1 : 0]    rvfi_rs1_addr_o,
+    output reg [   5 - 1 : 0]    rvfi_rs2_addr_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs1_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_rs2_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_rdata_o,
+    output reg [`XLEN - 1 : 0]   rvfi_pc_wdata_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_addr_o,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_rmask_o,
+    output reg [`XLEN/8 - 1 : 0] rvfi_mem_wmask_o,
+    output reg [`XLEN   - 1 : 0] rvfi_mem_wdata_o
+`endif
 );
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +148,7 @@ module memory_stage #(parameter VADDR = 39) (
         endcase
     end
     
-    assign dmem_word_addr = {dmem_full_addr_i[VADDR-1:2], 2'b0};
+    assign dmem_word_addr = {dmem_full_addr_i[VADDR-1:3], 3'b0};
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -143,11 +168,12 @@ module memory_stage #(parameter VADDR = 39) (
 
         .stall_i  (stall_i),
 
-        .be_i     ((mem_write) ? byte_strobe : 8'b0),
+        // .be_i     ((mem_write) ? byte_strobe : 8'b0),
+        .be_i     (byte_strobe),
         .addr_i   (dmem_word_addr),
         .wdata_i  (dmem_wdata_a),
-        .rd_i     (mem_read),
-        .wr_i     (mem_write),
+        .rd_i     (mem_read  && ~illegal_addr),
+        .wr_i     (mem_write && ~illegal_addr),
 
         .stall_ao (dmem_stall_ao),
 
@@ -172,9 +198,15 @@ module memory_stage #(parameter VADDR = 39) (
     //               |_|                                    |___/                                //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            valid_o <= 1'b0;
+        else if (~stall_i)
+            valid_o <= valid && (~exception);
+    end
+
     always @(posedge clk_i) begin : execute_pipeline_registers
-    // On reset, all signals set to 0; on stall, all outputs do not change.
-        valid_o          <= (stall_i) ? valid_o          : valid && (~exception);
+    // On stall, all outputs do not change.
         // Destination Register (rd) 
         rd_data_o        <= (stall_i) ? rd_data_o        : rd_data_i;
         rd_idx_o         <= (stall_i) ? rd_idx_o         : rd_idx_i;
@@ -185,6 +217,41 @@ module memory_stage #(parameter VADDR = 39) (
         mem_sign_o       <= (stall_i) ? mem_sign_o       : mem_sign_i;
         byte_addr_o      <= (stall_i) ? byte_addr_o      : dmem_full_addr_i[2:0];
     end
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    //                                  RISC-V Formal Interface                                  //
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+`ifdef LUCID64_RVFI
+
+    always @(posedge clk_i) begin
+        if (~rst_ni)
+            rvfi_trap_o       <= '0;
+        else if (squash_i || bubble_i)
+            rvfi_trap_o       <= '0;
+        else if (~stall_i)
+            rvfi_trap_o       <= rvfi_trap_i | (exception && valid);
+    end
+
+    always @(posedge clk_i) begin
+        if (~stall_i) begin
+            rvfi_insn_o       <= rvfi_insn_i;
+            rvfi_rs1_addr_o   <= rvfi_rs1_addr_i;
+            rvfi_rs2_addr_o   <= rvfi_rs2_addr_i;
+            rvfi_rs1_rdata_o  <= rvfi_rs1_rdata_i;
+            rvfi_rs2_rdata_o  <= rvfi_rs2_rdata_i;
+            rvfi_pc_rdata_o   <= rvfi_pc_rdata_i;
+            rvfi_pc_wdata_o   <= rvfi_pc_wdata_i;
+            rvfi_mem_addr_o   <= 64'(dmem_word_addr);
+            rvfi_mem_rmask_o  <= dmem_we_ao ? '0            : byte_strobe;
+            rvfi_mem_wmask_o  <= dmem_we_ao ? byte_strobe : '0;
+            rvfi_mem_wdata_o  <= dmem_wdata_ao;
+        end
+    end
+
+`endif
+
 
 endmodule
 
