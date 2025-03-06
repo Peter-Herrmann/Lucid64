@@ -61,7 +61,7 @@ module decoder #(parameter VADDR = 39) (
     //                                      Load/Store Signals                                   //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    wire illegal_mem_wd;
+    wire legal_load_store;
 
     always @(*) begin : mem_width_decoder
         case (func3[1:0])
@@ -77,11 +77,11 @@ module decoder #(parameter VADDR = 39) (
     assign mem_rd_ao = (opcode == `OPCODE_LOAD);
     assign mem_sign_ao = func3[2];
     
-    assign illegal_mem_wd = (mem_wr_ao || mem_rd_ao)          && 
-                            (func3[1:0] != `MEM_WIDTH_BYTE  ) &&
-                            (func3[1:0] != `MEM_WIDTH_HALF  ) &&
-                            (func3[1:0] != `MEM_WIDTH_WORD  ) &&
-                            (func3[1:0] != `MEM_WIDTH_DOUBLE);
+    assign legal_load_store = (mem_wr_ao || mem_rd_ao) && 
+                              ( (func3[1:0] == `MEM_WIDTH_BYTE  ) ||
+                                (func3[1:0] == `MEM_WIDTH_HALF  ) ||
+                                (func3[1:0] == `MEM_WIDTH_WORD  ) ||
+                                (func3[1:0] == `MEM_WIDTH_DOUBLE) );
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,9 +121,12 @@ module decoder #(parameter VADDR = 39) (
     assign rd_idx_ao  = inst_i[11:7];
 
 
+
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                          ALU Operation                                    //
     ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    wire legal_alu_op;
 
     alu_decoder #(.VADDR(VADDR)) uncompressed_alu_decoder (
         .inst_i             (inst_i),
@@ -138,13 +141,16 @@ module decoder #(parameter VADDR = 39) (
         .alu_uses_rs1_ao    (alu_uses_rs1_ao),
         .alu_uses_rs2_ao    (alu_uses_rs2_ao),
 
-        .alu_operation_ao   (alu_operation_ao)
+        .alu_operation_ao   (alu_operation_ao),
+        .legal_alu_op_ao    (legal_alu_op)
     );
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                   Flow Control and Exceptions                             //
     ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    wire legal_flow_control;
 
     always @(*) begin
         branch_cond_1h_ao = 'b0;
@@ -161,7 +167,11 @@ module decoder #(parameter VADDR = 39) (
         end
     end
     
-    assign branch_ao       = (opcode == `OPCODE_JAL) || (opcode == `OPCODE_JALR);
+    assign branch_ao          = (opcode == `OPCODE_JAL) || (opcode == `OPCODE_JALR);
+
+    assign legal_flow_control = ( ( (opcode == `OPCODE_JALR)   && func3 == 3'b0         ) ||
+                                  ( (opcode == `OPCODE_BRANCH) && branch_cond_1h_ao != 0) ||
+                                  ( (opcode == `OPCODE_JAL)                             ) );
 
     // sys_priv is only true for uncompressed instructions (Quadrant 2'b11)
     wire   sys_priv        = (opcode == `OPCODE_SYSTEM)   && (func3 == `SYSTEM_OP_PRIV);
@@ -171,7 +181,7 @@ module decoder #(parameter VADDR = 39) (
     assign wait_for_int_ao = sys_priv && func12 == `FUNC12_WFI;
     assign ebreak_ao       = sys_priv && func12 == `FUNC12_EBREAK;
 
-    assign illegal_inst_ao = illegal_mem_wd;
+    assign illegal_inst_ao = ~(legal_load_store || legal_flow_control || legal_alu_op);
 
 endmodule
 
