@@ -342,7 +342,7 @@ module csr #(parameter VADDR = 39) (
             mtval2 <= 'b0;
         else if (wr_mtval2)
             mtval2 <= wdata_i;
-        // TODO
+        // TODO : any additional behavior for mtval2
     end
 
 
@@ -389,7 +389,7 @@ module csr #(parameter VADDR = 39) (
     //              Unnamed Machine Hardware Performance Counters (mhpmcounter 3 - 31)           //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    // TODO
+    // TODO (finish) : Add additional counters
     
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //         ____                              _                   ____ ____  ____             //
