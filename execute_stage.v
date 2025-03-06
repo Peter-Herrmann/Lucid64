@@ -295,7 +295,7 @@ module execute_stage #(parameter VADDR = 39) (
     end
 
     // Program Counter Signals
-    assign branch_o      = valid && ( branch_i || branch_taken || fencei_ao);
+    assign branch_o      = valid && ( branch_i || branch_taken || fencei_ao) && ~stall_i;
     assign target_addr_o = fencei_ao ? next_pc_i : I_alu_res[VADDR-1:0];
 
 
@@ -399,7 +399,6 @@ module execute_stage #(parameter VADDR = 39) (
             rvfi_rs1_rdata_o  <= rs1_used_i ? rs1_data  : '0;
             rvfi_rs2_rdata_o  <= rs2_used_i ? rs2_data  : '0;
             rvfi_pc_rdata_o   <= rvfi_pc_rdata_i;
-            // This needs to match the branch target stall behavior in fetch
             rvfi_pc_wdata_o   <= branch_o      ? 64'(target_addr_o) & `IALIGN_MASK : 
                                 //  stall_delayed ? 64'(pc_wdata_saved)               :
                                                  64'(rvfi_pc_wdata_i);
