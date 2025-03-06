@@ -233,127 +233,6 @@ module decode_stage #(parameter VADDR = 39) (
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                            Reference Illegal Instruction Checker                          //
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    reg legal_ref;
-
-    always @(*) begin
-		legal_ref = 0;
-
-		if (inst_i[6:0] == 7'b 01_101_11) legal_ref = 1; // LUI
-		if (inst_i[6:0] == 7'b 00_101_11) legal_ref = 1; // AUIPC
-		if (inst_i[6:0] == 7'b 11_011_11) legal_ref = 1; // JAL
-
-		if (inst_i[6:0] == 7'b 11_001_11) begin // JALR
-			legal_ref = inst_i[14:12] == 3'b 000;
-		end
-
-		if (inst_i[6:0] == 7'b 11_000_11) begin // BRANCH
-			legal_ref = (inst_i[14:12] != 3'b 010) && (inst_i[14:12] != 3'b 011);
-		end
-
-		if (inst_i[6:0] == 7'b 00_000_11) begin // LOAD
-			legal_ref = (inst_i[14:12] != 3'b 111);
-		end
-
-		if (inst_i[6:0] == 7'b 01_000_11) begin // STORE
-			legal_ref = (inst_i[14:12] == 3'b 000) || (inst_i[14:12] == 3'b 001) || (inst_i[14:12] == 3'b 010) || (inst_i[14:12] == 3'b 011);
-		end
-
-		if (inst_i[6:0] == 7'b 00_100_11) begin // OP-IMM
-			case (inst_i[14:12])
-				3'b 001: begin // SLLI
-					legal_ref = inst_i[31:26] == 6'b 000000;
-				end
-				3'b 101: begin // SRLI SRAI
-					legal_ref = (inst_i[31:26] == 6'b 000000) || (inst_i[31:26] == 6'b 010000);
-				end
-				default: begin
-					legal_ref = 1;
-				end
-			endcase
-		end
-
-		if (inst_i[6:0] == 7'b 01_100_11) begin // OP
-			case (inst_i[14:12])
-				3'b 000, 3'b 101: begin // ADD SUB SRL SRA
-					legal_ref = (inst_i[31:25] == 7'b 0000000) || (inst_i[31:25] == 7'b 0100000);
-				end
-				default: begin
-					legal_ref = inst_i[31:25] == 7'b 0000000;
-				end
-			endcase
-		end
-
-		if (inst_i[6:0] == 7'b 00_110_11) begin // OP-IMM-32
-			case (inst_i[14:12])
-				3'b 001: begin // SLLIW
-					legal_ref = inst_i[31:25] == 7'b 0000000;
-				end
-				3'b 101: begin // SRLIW SRAIW
-					legal_ref = (inst_i[31:25] == 7'b 0000000) || (inst_i[31:25] == 7'b 0100000);
-				end
-				3'b 000: begin // ADDIW
-					legal_ref = 1;
-				end
-                default: ;
-			endcase
-		end
-
-		if (inst_i[6:0] == 7'b 01_110_11) begin // OP-32
-			case (inst_i[14:12])
-				3'b 000, 3'b 101: begin // ADDW SUBW SRLW SRAW
-					legal_ref = (inst_i[31:25] == 7'b 0000000) || (inst_i[31:25] == 7'b 0100000);
-				end
-				3'b 001: begin // SLLW
-					legal_ref = inst_i[31:25] == 7'b 0000000;
-				end
-                default: ;
-			endcase
-		end
-
-		if (inst_i[1:0] != 2'b11) begin
-			casez (inst_i[15:0])
-				// RVC -- Quadrant 0
-				16'b 000_???_???_??_???_00: legal_ref = |inst_i[12:5];              // C.ADDI4SPN
-				16'b 010_???_???_??_???_00: legal_ref = 1;                        // C.LW
-				16'b 011_???_???_??_???_00: legal_ref = 1;                        // C.LD
-				16'b 110_???_???_??_???_00: legal_ref = 1;                        // C.SW
-				16'b 111_???_???_??_???_00: legal_ref = 1;                        // C.SD
-
-				// RVC -- Quadrant 1
-				16'b 000_?_??_???_??_???_01: legal_ref = 1;                       // C.NOP, C.ADDI
-				16'b 001_?_??_???_??_???_01: legal_ref = |inst_i[11:7];             // C.ADDIW
-				16'b 010_?_??_???_??_???_01: legal_ref = 1;                       // C.LI
-				16'b 011_?_??_???_??_???_01: legal_ref = |{inst_i[12], inst_i[6:2]};  // C.ADDI16SP, C.LUI
-				16'b 100_?_00_???_??_???_01: legal_ref = 1;                       // C.SRLI
-				16'b 100_?_01_???_??_???_01: legal_ref = 1;                       // C.SRAI
-				16'b 100_?_10_???_??_???_01: legal_ref = 1;                       // C.ANDI
-				16'b 100_0_11_???_00_???_01: legal_ref = 1;                       // C.SUB
-				16'b 100_0_11_???_01_???_01: legal_ref = 1;                       // C.XOR
-				16'b 100_0_11_???_10_???_01: legal_ref = 1;                       // C.OR
-				16'b 100_0_11_???_11_???_01: legal_ref = 1;                       // C.AND
-				16'b 100_1_11_???_00_???_01: legal_ref = 1;                       // C.SUBW
-				16'b 100_1_11_???_01_???_01: legal_ref = 1;                       // C.ADDW
-				16'b 101_?_??_???_??_???_01: legal_ref = 1;                       // C.J
-				16'b 110_?_??_???_??_???_01: legal_ref = 1;                       // C.BEQZ
-				16'b 111_?_??_???_??_???_01: legal_ref = 1;                       // C.BNEZ
-
-				// RVC -- Quadrant 2
-				16'b 000_?_?????_?????_10: legal_ref = 1;                         // C.SLLI
-				16'b 010_?_?????_?????_10: legal_ref = |inst_i[11:7];               // C.LWSP
-				16'b 011_?_?????_?????_10: legal_ref = |inst_i[11:7];               // C.LDSP
-				16'b 100_0_?????_?????_10: legal_ref = |inst_i[11:7] || |inst_i[6:2]; // C.MV and C.JR
-				16'b 100_1_?????_?????_10: legal_ref = |inst_i[11:2];             // C.JALR, C.ADD
-				16'b 110_?_?????_?????_10: legal_ref = 1;                         // C.SWSP
-				16'b 111_?_?????_?????_10: legal_ref = 1;                         // C.SDSP
-                default: ;
-			endcase
-		end
-	end
-
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////
     //                       Compressed vs Uncompressed Decoder Multiplexer                      //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -429,11 +308,10 @@ module decode_stage #(parameter VADDR = 39) (
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     // wire illegal_inst_ex = compressed ? illegal_inst_compr : 'b0; // TODO: make complete illegal instruction logic
-    wire illegal_inst_ex = ~legal_ref | 
-                            (compressed  && illegal_inst_compr)   | 
-                            (~compressed && illegal_inst_uncompr) | 
-                            csr_rd_ex_i |
-                            !(|inst_i);
+    wire illegal_inst_ex = (compressed  && illegal_inst_compr)   ||
+                           (~compressed && illegal_inst_uncompr) ||
+                            csr_rd_ex_i                          ||
+                            !(|inst_i[15:0]);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //        ____  _            _ _              ____            _     _                        //
