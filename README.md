@@ -1,11 +1,12 @@
 # Lucid64
-[![RISC-V Arch Tests](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/github_run.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/github_run.yml) [![Synthesis](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/synthesis.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/synthesis.yml)
+
+[![RISC-V Formal Verification](https://github.com/Peter-Herrmann/Lucid64-formal/actions/workflows/riscv-formal.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-formal/actions/workflows/riscv-formal.yml) [![RISC-V Arch Tests](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/github_run.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/github_run.yml) [![Synthesis](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/synthesis.yml/badge.svg)](https://github.com/Peter-Herrmann/Lucid64-Verif/actions/workflows/synthesis.yml)
 
 A 64-bit RISC-V core written with plain and simple Verilog. The core is a 5-stage, in-order RV64IMAC_Zicsr_Zifencei processor that prioritizes readability with minimal tool-specific knowledge (no exotic language features, code generation, excessive configurability).
 
 ## Verification
 
-This core has been formally verified with riscv-formal and verified in simulation with RISCOF. The verification for this core is in a seperate repository, [Lucid64-Verif](https://github.com/Peter-Herrmann/Lucid64-Verif). The badges above are associated with CI runs from that repository.
+This core has been formally verified with riscv-formal and verified in simulation with RISCOF. The verification for this core is in seperate repositories, [Lucid64-Verif](https://github.com/Peter-Herrmann/Lucid64-Verif), and [Lucid64-formal](https://github.com/Peter-Herrmann/Lucid64-formal). The badges above are associated with CI runs from those repositories.
 
 ## Memory Interfaces
 
