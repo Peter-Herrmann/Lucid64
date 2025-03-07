@@ -323,10 +323,13 @@ module decode_stage #(parameter VADDR = 39) (
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     always @(posedge clk_i) begin
-        if (~rst_ni)
-            valid_o <= 1'b0;
-        else if (~stall_i)
-            valid_o <= valid;
+        if (~rst_ni) begin
+            valid_o         <= 1'b0;
+            alu_operation_o <= '0;
+        end else if (~stall_i) begin
+            valid_o         <= valid;
+            alu_operation_o <= valid ? alu_operation : '0;
+        end
     end
 
     always @(posedge clk_i) begin : decode_pipeline_registers
@@ -344,7 +347,6 @@ module decode_stage #(parameter VADDR = 39) (
         rd_wr_en_o          <= (stall_i) ? rd_wr_en_o        : rd_wr_en;
         rd_wr_src_1h_o      <= (stall_i) ? rd_wr_src_1h_o    : rd_wr_src_1h;
         // ALU Operation and Operands
-        alu_operation_o     <= (stall_i) ? alu_operation_o   : alu_operation;
         alu_op_a_o          <= (stall_i) ? alu_op_a_o        : alu_op_a;
         alu_op_b_o          <= (stall_i) ? alu_op_b_o        : alu_op_b;
         alu_uses_rs1_o      <= (stall_i) ? alu_uses_rs1_o    : alu_uses_rs1;

@@ -266,6 +266,7 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     wire [4:0]       EXE_rd_idx;
     wire [3:0]       EXE_mem_width_1h;
     wire             EXE_rd, EXE_wr, EXE_sign, EXE_wr_a;
+    wire             MEM_rd_wr_en;
     
 `ifdef LUCID64_RVFI
     wire                    EXE_rvfi_trap;
@@ -394,7 +395,7 @@ module Lucid64 #(parameter VADDR = 39, parameter RESET_ADDR = 0) (
     ///////////////////////////////////////////////////////////////////////////////////////////////
     //                                            Memory                                         //
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    wire             MEM_rd_wr_en, MEM_rd_wr_src_load;
+    wire             MEM_rd_wr_src_load;
     wire [3:0]       MEM_mem_width_1h;
     wire [4:0]       MEM_rd_idx;
     wire [`XLEN-1:0] MEM_rd_data;
